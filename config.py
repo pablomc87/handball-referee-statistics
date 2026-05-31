@@ -5,18 +5,26 @@ TERRITORIAL_ID = "9999"
 SURFACE_ID = "1"
 AMBITO_NATIONAL = "0"
 DB_PATH = "handball.db"
-OUTPUT_PATH = "output/referees.json"
 
 MAX_CONCURRENT = 20
 
-# Exact names from the <select id='categorias'> dropdown
+# Exact names from the <select id='categorias'> dropdown.
+# Accent-stripped forms are compared via _norm(), so accented variants (e.g. DIVISIÓN)
+# are matched automatically. Add season-specific variant spellings here when the site
+# changes the category name structure (e.g. 2021-22 dropped "DE" before "HONOR").
 TARGET_CATEGORIES = {
+    # Current naming (2022-23 onwards)
     "CAMPEONATO ESTATAL DE DIVISION DE HONOR ELITE FEMENINA",
     "CAMPEONATO ESTATAL DE DIVISION DE HONOR MASCULINA",
     "CAMPEONATO ESTATAL DE DIVISION DE HONOR PLATA MASCULINA",
     "CAMPEONATO ESTATAL DE DIVISION DE HONOR ORO FEMENINA",
     "CAMPEONATO ESTATAL DE PRIMERA DIVISION MASCULINA",
     "CAMPEONATO ESTATAL DE DIVISION DE HONOR PLATA FEMENINA",
+    # 2021-22 season: dropped "DE" before "HONOR" and used MASCULINO/FEMENINA variants
+    "CAMPEONATO ESTATAL DE DIVISION HONOR MASCULINO",
+    "CAMPEONATO ESTATAL DE DIVISION HONOR PLATA MASCULINA",
+    "CAMPEONATO ESTATAL DE DIVISION HONOR PLATA FEMENINA",
+    "CAMPEONATO ESTATAL DE DIVISION HONOR FEMENINA",
 }
 
 # ── Scoring ──────────────────────────────────────────────────────────────────

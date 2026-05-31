@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Árbitros Balonmano España</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<h1>Árbitros Balonmano España · <span id="season-label">Cargando…</span></h1>
+<div class="header-bar">
+  <p class="subtitle">Datos: resultadosbalonmano.isquad.es · Categorías nacionales</p>
+  <div id="season-buttons" class="season-buttons"></div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="stats"       onclick="showTab('stats',this)">Estadísticas</button>
+  <button class="tab-btn"        data-tab="couples"     onclick="showTab('couples',this)">Ranking parejas</button>
+  <button class="tab-btn"        data-tab="progression" onclick="showTab('progression',this)">Progresión</button>
+  <button class="tab-btn"        data-tab="games"       onclick="showTab('games',this)">Partidos</button>
+  <button class="tab-btn"        data-tab="moves"       onclick="showTab('moves',this)">Ascensos/descensos</button>
+  <button class="tab-btn"        data-tab="refs"        onclick="showTab('refs',this)">Árbitros</button>
+</div>
+
+<div id="tab-stats"       class="tab-panel active"></div>
+<div id="tab-couples"     class="tab-panel"></div>
+<div id="tab-progression" class="tab-panel"></div>
+<div id="tab-games"       class="tab-panel"></div>
+<div id="tab-moves"       class="tab-panel"></div>
+<div id="tab-refs"        class="tab-panel"></div>
+
+<div id="c-tip"></div>
+<div id="c-modal-bg"><div id="c-modal"></div></div>
+
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

@@ -160,4 +160,18 @@ def get_match_standings(
     n = max(n, 2)
     home = ranks.get(match["home_team"], n // 2 + 1)
     away = ranks.get(match["away_team"], n // 2 + 1)
+
+    # For non-regular-season torneos (playoffs, cups) the combined standings
+    # span all regular-season groups, so ranks can exceed the actual group
+    # size of the torneo being scored.  Ranks beyond the playoff group size
+    # are meaningless — replace them with the neutral mid-table rank.
+    if "LIGA REGULAR" not in torneo_name:
+        n_torneo = len(db.get_all_teams_in_torneo(torneo["torneo_id"]))
+        if n_torneo > 1:
+            if home > n_torneo:
+                home = n_torneo // 2 + 1
+            if away > n_torneo:
+                away = n_torneo // 2 + 1
+            n = n_torneo
+
     return home, away, n

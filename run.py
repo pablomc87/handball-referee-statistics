@@ -20,18 +20,12 @@ async def main() -> None:
         connector=connector,
     ) as session:
 
-        # Phase 0: previous season — discover and scrape everything
-        if not db.is_discovery_done(config.PREV_SEASON_ID):
-            await scraper.discover_competitions(session, semaphore, season_id=config.PREV_SEASON_ID)
-        else:
-            print(f"Phase 0 [{config.PREV_SEASON_ID}]: skipped (already discovered)")
-
-        # Phase 1: current season — discover all torneos for target categories
-        if not db.is_discovery_done(config.SEASON_ID):
-            await scraper.discover_competitions(session, semaphore, season_id=config.SEASON_ID)
-        else:
-            torneos = db.get_all_torneos()
-            print(f"Phase 1 [{config.SEASON_ID}]: skipped ({len(torneos)} torneos in DB)")
+        # Phase 1: discover competitions for all catalog seasons
+        for season_id in config.CATALOG_SEASONS:
+            if not db.is_discovery_done(season_id):
+                await scraper.discover_competitions(session, semaphore, season_id=season_id)
+            else:
+                print(f"Phase 1 [{season_id}]: skipped (already discovered)")
 
         # Phase 2a: discover jornadas per torneo
         await scraper.discover_jornadas(session, semaphore)
@@ -42,8 +36,6 @@ async def main() -> None:
         # Phase 3: fetch referee nominations
         await scraper.fetch_referees(session, semaphore)
 
-    count = db.export_json(config.OUTPUT_PATH)
-    print(f"\nDone. {count} matches written to {config.OUTPUT_PATH}")
     db.print_stats()
 
     # Phase 4: parse PDF referee catalogs

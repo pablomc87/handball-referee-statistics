@@ -52,16 +52,29 @@ def score_factor(match: dict) -> float:
 def compute_all_scores() -> int:
     """
     For every match with at least one referee, compute and store nomination scores.
+    Uses the season-appropriate referee catalog for each match so that referees
+    from older seasons are correctly identified even if not in the current catalog.
     Returns number of score rows written.
     """
-    name_map = name_matcher.build_name_map(season_id=config.SEASON_ID)
+    # Build one name map per season that has a catalog
+    with db._conn() as conn:
+        catalog_seasons = [r[0] for r in conn.execute(
+            "SELECT DISTINCT season_id FROM referees_catalog"
+        ).fetchall()]
 
-    # Load all needed data in one query
+    name_maps: dict[str, dict] = {}
+    for sid in catalog_seasons:
+        name_maps[sid] = name_matcher.build_name_map(season_id=sid)
+    # Fallback: current season map for any season without a dedicated catalog
+    fallback_map = name_maps.get(config.SEASON_ID, {})
+
+    # Load all needed data in one query (include season_id for map selection)
     with db._conn() as conn:
         rows = conn.execute("""
             SELECT
                 m.match_id, m.torneo_id, m.home_team, m.away_team,
                 m.date, m.score_home, m.score_away, m.status,
+                t.season_id,
                 t.categoria_name, t.competicion_name, t.torneo_name,
                 t.cat_id, t.comp_id,
                 r.referee_1, r.referee_2
@@ -75,6 +88,9 @@ def compute_all_scores() -> int:
 
     for row in rows:
         match = dict(row)
+        season_id = match.get("season_id", config.SEASON_ID)
+        name_map = name_maps.get(season_id, fallback_map)
+
         torneo = {k: match[k] for k in ("torneo_id", "cat_id", "comp_id",
                                          "categoria_name", "competicion_name", "torneo_name")}
 

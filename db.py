@@ -18,124 +18,12 @@ def _conn() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    with _conn() as conn:
-        conn.executescript("""
-            -- Referee catalog parsed from PDFs
-            CREATE TABLE IF NOT EXISTS referees_catalog (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                raw_name    TEXT,
-                normalized  TEXT,
-                category    TEXT,   -- elite | honor | primera
-                territory   TEXT,
-                active      INTEGER DEFAULT 1,
-                season_id   TEXT    DEFAULT '2526'
-            );
+    """Run all pending Alembic migrations to bring the schema to the latest version."""
+    from alembic.config import Config
+    from alembic import command as alembic_command
 
-            -- Computed nomination scores
-            CREATE TABLE IF NOT EXISTS nomination_scores (
-                match_id            INTEGER,
-                referee_name        TEXT,
-                catalog_id          INTEGER,
-                competition_mod     REAL,
-                match_quality       REAL,
-                score_factor        REAL,
-                nomination_score    REAL,
-                PRIMARY KEY (match_id, referee_name)
-            );
-        """)
-
-        # Migrate legacy meta key to season-specific format
-        try:
-            old = conn.execute("SELECT value FROM meta WHERE key='competitions_discovered'").fetchone()
-            if old and old["value"] == "1":
-                conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('competitions_discovered_2526','1')")
-                conn.execute("DELETE FROM meta WHERE key='competitions_discovered'")
-        except Exception:
-            pass
-
-        # Add season_id to torneos (migration)
-        try:
-            conn.execute("ALTER TABLE torneos ADD COLUMN season_id TEXT NOT NULL DEFAULT '2526'")
-        except Exception:
-            pass  # already exists
-
-        # Add score columns to matches if they don't exist yet (migration)
-        for col_def in ("score_home INTEGER", "score_away INTEGER"):
-            try:
-                conn.execute(f"ALTER TABLE matches ADD COLUMN {col_def}")
-            except Exception:
-                pass  # already exists
-
-        # Add season_id to referees_catalog (migration)
-        try:
-            conn.execute("ALTER TABLE referees_catalog ADD COLUMN season_id TEXT DEFAULT '2526'")
-        except Exception:
-            pass
-        try:
-            conn.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_catalog_name_season "
-                "ON referees_catalog(raw_name, season_id)"
-            )
-        except Exception:
-            pass
-
-        # Add rank columns to nomination_scores if they don't exist yet (migration)
-        for col_def in ("rank_home INTEGER", "rank_away INTEGER", "n_teams INTEGER"):
-            try:
-                conn.execute(f"ALTER TABLE nomination_scores ADD COLUMN {col_def}")
-            except Exception:
-                pass  # already exists
-
-        conn.executescript("""
-            CREATE TABLE IF NOT EXISTS meta (
-                key   TEXT PRIMARY KEY,
-                value TEXT
-            );
-
-            -- One row per competition phase (torneo)
-            CREATE TABLE IF NOT EXISTS torneos (
-                torneo_id        INTEGER PRIMARY KEY,
-                cat_id           INTEGER,
-                comp_id          INTEGER,
-                categoria_name   TEXT,
-                competicion_name TEXT,
-                torneo_name      TEXT,
-                jornadas_discovered INTEGER DEFAULT 0
-            );
-
-            -- One row per (torneo, jornada) pair; jornada_num=0 means no jornada param
-            CREATE TABLE IF NOT EXISTS jornadas (
-                torneo_id   INTEGER,
-                jornada_num INTEGER,
-                scraped     INTEGER DEFAULT 0,
-                PRIMARY KEY (torneo_id, jornada_num)
-            );
-
-            -- One row per match
-            CREATE TABLE IF NOT EXISTS matches (
-                match_id        INTEGER PRIMARY KEY,
-                torneo_id       INTEGER,
-                home_team       TEXT,
-                away_team       TEXT,
-                date            TEXT,
-                time            TEXT,
-                venue           TEXT,
-                status          TEXT,
-                referee_scraped INTEGER DEFAULT 0,
-                scraped_at      TEXT
-            );
-
-            -- Flat referee data per match
-            CREATE TABLE IF NOT EXISTS referees (
-                match_id       INTEGER PRIMARY KEY,
-                referee_1      TEXT,
-                referee_2      TEXT,
-                scorekeeper_1  TEXT,
-                scorekeeper_2  TEXT,
-                table_delegate TEXT,
-                tv             TEXT
-            );
-        """)
+    cfg = Config(Path(__file__).with_name("alembic.ini"))
+    alembic_command.upgrade(cfg, "head")
 
 
 # --- meta ---
@@ -159,7 +47,24 @@ def mark_discovery_done(season: str = config.SEASON_ID) -> None:
 
 # --- torneos ---
 
+_CATEGORIA_ALIASES: dict[str, str] = {
+    # 2021-22 used "DIVISION HONOR" (without "DE") and "MASCULINO"/"FEMENINA" variants
+    "CAMPEONATO ESTATAL DE DIVISION HONOR FEMENINA":        "CAMPEONATO ESTATAL DE DIVISION DE HONOR ELITE FEMENINA",
+    "CAMPEONATO ESTATAL DE DIVISION HONOR MASCULINO":       "CAMPEONATO ESTATAL DE DIVISION DE HONOR MASCULINA",
+    "CAMPEONATO ESTATAL DE DIVISION HONOR PLATA FEMENINA":  "CAMPEONATO ESTATAL DE DIVISION DE HONOR PLATA FEMENINA",
+    "CAMPEONATO ESTATAL DE DIVISION HONOR PLATA MASCULINA": "CAMPEONATO ESTATAL DE DIVISION DE HONOR PLATA MASCULINA",
+}
+
+
+def _norm_categoria(name: str) -> str:
+    """Normalize category name variants across seasons to a single canonical form."""
+    name = name.replace("DIVISIÓN", "DIVISION")
+    return _CATEGORIA_ALIASES.get(name, name)
+
+
 def upsert_torneo(d: dict) -> None:
+    d = dict(d)
+    d["categoria_name"] = _norm_categoria(d.get("categoria_name") or "")
     with _write_lock, _conn() as conn:
         conn.execute(
             """
@@ -222,6 +127,7 @@ def get_jornadas_needing_scrape() -> list[dict]:
     with _conn() as conn:
         rows = conn.execute(
             """
+            -- Join torneos so callers get category/competition context without a second query
             SELECT j.torneo_id, j.jornada_num,
                    t.cat_id, t.comp_id, t.categoria_name, t.competicion_name, t.torneo_name
             FROM jornadas j
@@ -251,6 +157,7 @@ def upsert_matches_batch(matches: list[dict]) -> None:
                 date=excluded.date,
                 time=excluded.time,
                 venue=excluded.venue,
+                -- Keep existing score if the new scrape doesn't include it yet
                 score_home=COALESCE(excluded.score_home, matches.score_home),
                 score_away=COALESCE(excluded.score_away, matches.score_away)
             """,
@@ -281,6 +188,8 @@ def get_matches_needing_referee_scrape() -> list[dict]:
             SELECT * FROM matches
             WHERE referee_scraped = 0
                OR (
+                    -- Re-scrape previously-pending matches whose date has now passed;
+                    -- they may have been played and now have a referee assignment.
                     referee_scraped = 1
                     AND status = 'Pendiente'
                     AND date < ?
@@ -364,6 +273,8 @@ def upsert_catalog_entries(entries: list[dict]) -> None:
     with _write_lock, _conn() as conn:
         conn.executemany(
             """
+            -- DO NOTHING: catalog PDFs are authoritative; re-parsing the same PDF
+            -- must not overwrite a manually-corrected entry.
             INSERT INTO referees_catalog(raw_name, normalized, category, territory, active, season_id)
             VALUES(:raw_name, :normalized, :category, :territory, :active, :season_id)
             ON CONFLICT DO NOTHING
@@ -531,6 +442,10 @@ def get_couple_rankings() -> list[dict]:
 
 
 def get_referee_rankings() -> list[dict]:
+    """
+    Aggregate nomination scores per individual referee across all seasons.
+    LEFT JOIN so referees without a catalog entry (unknown names) still appear.
+    """
     with _conn() as conn:
         return [dict(r) for r in conn.execute("""
             SELECT
