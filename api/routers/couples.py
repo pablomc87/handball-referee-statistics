@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import APIRouter, Depends, Query, HTTPException
 import sqlite3
 from api.deps import get_db
@@ -10,7 +11,7 @@ router = APIRouter()
 @router.get("/couples")
 def list_couples(
     season:    str = Query("all"),
-    cat:       str | None = Query(None),
+    cat:       List[str] = Query(default=[]),
     gender:    str | None = Query(None),
     min_games: int = Query(1, ge=1),
     name:      str | None = Query(None),
@@ -20,13 +21,12 @@ def list_couples(
     per_page:  int = Query(50, ge=1, le=200),
     conn: sqlite3.Connection = Depends(get_db),
 ):
-    if cat and cat not in ALLOWED_CAT:
-        raise HTTPException(400, f"cat must be one of {ALLOWED_CAT}")
+    cats = [c for c in cat if c in ALLOWED_CAT]
     if gender and gender not in ALLOWED_GENDER:
         raise HTTPException(400, f"gender must be M or F")
     if sort_by not in ALLOWED_COUPLE_SORT:
         sort_by = "avg_score"
-    return queries.get_couples(conn, season, cat, gender, min_games, name, sort_by, sort_dir, page, per_page)
+    return queries.get_couples(conn, season, cats, gender, min_games, name, sort_by, sort_dir, page, per_page)
 
 
 @router.get("/couples/games")

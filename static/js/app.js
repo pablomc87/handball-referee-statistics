@@ -10,6 +10,11 @@ import * as refs   from "./tabs/refs.js";
 
 const el = (id) => document.getElementById(id);
 
+function tabFromPath(pathname) {
+  const name = pathname.replace(/^\//, "") || "stats";
+  return name in TABS ? name : "stats";
+}
+
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = {
   stats:       { mod: stats,   seasonSensitive: true  },
@@ -23,13 +28,20 @@ const TABS = {
 let _activeTab = "stats";
 const _dirty   = new Set(Object.keys(TABS));
 
-function showTab(name, btn) {
+function showTab(name, btn, { pushState = true } = {}) {
+  if (!TABS[name]) name = "stats";
   document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
   const panel = el(`tab-${name}`);
   if (panel) panel.classList.add("active");
-  if (btn)   btn.classList.add("active");
+  const tabBtn = btn || document.querySelector(`.tab-btn[data-tab="${name}"]`);
+  if (tabBtn) tabBtn.classList.add("active");
   _activeTab = name;
+
+  if (pushState) {
+    const path = name === "stats" ? "/" : `/${name}`;
+    if (location.pathname !== path) history.pushState({ tab: name }, "", path);
+  }
 
   const tab = TABS[name];
   if (!tab) return;
@@ -45,6 +57,15 @@ function showTab(name, btn) {
 }
 
 window.showTab = showTab;
+
+document.querySelectorAll(".tab-btn[data-tab]").forEach(btn => {
+  btn.addEventListener("click", () => showTab(btn.dataset.tab, btn));
+});
+
+window.addEventListener("popstate", (e) => {
+  const name = e.state?.tab || tabFromPath(location.pathname);
+  showTab(name, null, { pushState: false });
+});
 
 // ── Season ────────────────────────────────────────────────────────────────────
 function setSeason(s, btn) {
@@ -98,8 +119,9 @@ async function main() {
   state.setSeason(defaultSeason);
   el("season-label").textContent = `Temporada ${seasonLabel(defaultSeason)}`;
 
-  // Activate stats tab
-  showTab("stats", document.querySelector('.tab-btn[data-tab="stats"]'));
+  // Activate tab from URL, defaulting to stats
+  const initialTab = tabFromPath(location.pathname);
+  showTab(initialTab, null, { pushState: false });
 }
 
 main().catch(console.error);

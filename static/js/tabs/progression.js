@@ -5,14 +5,17 @@ let _chart = null;
 let _data  = null;   // season progression data
 let _selected = new Set();
 let _season = null;
+let _gender = "";     // current gender filter ("", "M", or "F")
+let _cats = new Set();  // active category filter (empty = all)
 
 const el = (id) => document.getElementById(id);
 
-async function _fetchSeason(season) {
+async function _fetchSeason(season, gender) {
   el("prog-loading").style.display = "block";
   try {
-    _data   = await api.getProgression(season);
+    _data   = await api.getProgression(season, gender || undefined);
     _season = season;
+    _gender = gender || "";
     _selected.clear();
     _updateDropdown();
     _autoSelect();
@@ -25,14 +28,11 @@ async function _fetchSeason(season) {
 
 function _filtered() {
   if (!_data) return [];
-  const cat     = el("prog-cat")?.value || "";
-  const gender  = el("prog-gender")?.value || "";
-  const minG    = parseInt(el("prog-min-games")?.value) || 1;
-  const search  = (el("prog-search")?.value || "").toLowerCase();
+  const minG   = parseInt(el("prog-min-games")?.value) || 1;
+  const search = (el("prog-search")?.value || "").toLowerCase();
 
   return Object.values(_data).filter(d => {
-    if (cat    && d.category !== cat) return false;
-    if (gender && d.gender   !== gender) return false;
+    if (_cats.size && !_cats.has(d.category)) return false;
     if (d.games < minG) return false;
     if (search && !`${d.ref_a} ${d.ref_b}`.toLowerCase().includes(search)) return false;
     return true;
@@ -122,8 +122,8 @@ export function drawChart() {
   const labels = [...allDates].sort();
 
   const datasets = selected.map(([refA, refB], idx) => {
-    const key  = `${refA}|||${refB}`;
-    const d    = _data[key];
+    const key = `${refA}|||${refB}`;
+    const d   = _data[key];
     if (!d) return null;
     const pMap = Object.fromEntries(d.progression.map(p => [p.date, p]));
     let carry  = null;
@@ -173,7 +173,9 @@ export function drawChart() {
 }
 
 export async function load(season) {
-  if (season !== _season) await _fetchSeason(season);
+  if (season !== _season || _gender !== (el("prog-gender")?.value || "")) {
+    await _fetchSeason(season, el("prog-gender")?.value || "");
+  }
 }
 
 export function init() {
@@ -182,13 +184,14 @@ export function init() {
 
   panel.innerHTML = `
 <div class="prog-controls">
-  <div><label class="form-label">Categoría:</label>
-    <select id="prog-cat" class="form-ctrl" onchange="window._progRefresh()">
-      <option value="">Todas</option><option value="elite">Élite</option>
-      <option value="honor">Honor</option><option value="primera">1ª División</option>
-    </select></div>
+  <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+    <label class="form-label" style="margin:0">Categoría:</label>
+    <button class="season-btn" id="pc-elite"   onclick="window._progCat('elite',this)">Élite</button>
+    <button class="season-btn" id="pc-honor"   onclick="window._progCat('honor',this)">Honor</button>
+    <button class="season-btn" id="pc-primera" onclick="window._progCat('primera',this)">1ª Div.</button>
+  </div>
   <div><label class="form-label">Género:</label>
-    <select id="prog-gender" class="form-ctrl" onchange="window._progRefresh()">
+    <select id="prog-gender" class="form-ctrl" onchange="window._progGender()">
       <option value="">Todos</option><option value="M">Masculino</option><option value="F">Femenino</option>
     </select></div>
   <div><label class="form-label">Mín. partidos:</label>
@@ -213,6 +216,15 @@ export function init() {
 <div id="prog-chart-wrap"><canvas id="progressionChart"></canvas></div>`;
 
   const dbl = debounce(() => _updateDropdown());
+  window._progCat = (cat, btn) => {
+    if (_cats.has(cat)) _cats.delete(cat); else _cats.add(cat);
+    btn.classList.toggle("active", _cats.has(cat));
+    _selected.clear(); _updateDropdown(); _renderSelected();
+  };
+  window._progGender = () => {
+    const g = el("prog-gender")?.value || "";
+    _fetchSeason(_season, g);
+  };
   window._progRefresh    = () => { _selected.clear(); _updateDropdown(); _renderSelected(); };
   window._progSearchInput = () => { document.getElementById("prog-dropdown").style.display="block"; dbl(); };
   window._progClear      = () => { _selected.clear(); _renderSelected(); _updateDropdown(); };

@@ -1,7 +1,7 @@
 import * as api from "../api.js";
 import { CAT_COLOR, CAT_LABEL, CAT_RANK, formatDate, debounce, spinner, renderPagination, bestCat } from "../utils.js";
 
-let _state = { season:"all", cat:"", gender:"all", min_games:1, name:"", sort_by:"avg_score", sort_dir:"desc", page:1, per_page:50 };
+let _state = { season:"all", cats:new Set(), gender:"all", min_games:1, name:"", sort_by:"avg_score", sort_dir:"desc", page:1, per_page:50 };
 
 const el = (id) => document.getElementById(id);
 
@@ -136,9 +136,6 @@ function _row(r, rank) {
     <td class="num bold">${(r.total_score || 0).toFixed(3)}</td>
     <td class="num">${(r.avg_score || 0).toFixed(3)}</td>
     <td class="num">${(r.best_score || 0).toFixed(3)}</td>
-    <td class="num dim">${(r.avg_comp_mod || 0).toFixed(2)}</td>
-    <td class="num dim">${(r.avg_quality || 0).toFixed(3)}</td>
-    <td class="num dim">${(r.avg_score_factor || 0).toFixed(3)}</td>
   </tr>`;
 }
 
@@ -148,11 +145,11 @@ async function _load() {
   if (!tbody) return;
   tbody.innerHTML = spinner();
 
-  const { season, cat, gender, min_games, name, sort_by, sort_dir, page, per_page } = _state;
+  const { season, cats, gender, min_games, name, sort_by, sort_dir, page, per_page } = _state;
   try {
     const data = await api.getCouples({
       season:    season === "all" ? undefined : season,
-      cat:       cat || undefined,
+      cat:       cats.size ? [...cats] : undefined,
       gender:    gender === "all" ? undefined : gender,
       min_games,
       name:      name || undefined,
@@ -181,7 +178,7 @@ async function _load() {
       if (pg) pgEl.appendChild(pg);
     }
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="12" style="color:#ef4444;text-align:center">Error: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="color:#ef4444;text-align:center">Error: ${e.message}</td></tr>`;
   }
 }
 
@@ -201,6 +198,12 @@ export function init() {
   panel.innerHTML = `
 <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.75rem">
   <span class="count-label" id="couple-count-label"></span>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+    <span style="color:#64748b;font-size:.82rem">Categoría:</span>
+    <button class="season-btn" id="cc-elite"  onclick="window._couplesCat('elite',this)">Élite</button>
+    <button class="season-btn" id="cc-honor"  onclick="window._couplesCat('honor',this)">Honor</button>
+    <button class="season-btn" id="cc-primera" onclick="window._couplesCat('primera',this)">1ª Div.</button>
+  </div>
   <div style="display:flex;gap:.5rem">
     <button class="season-btn active" id="cg-all" onclick="window._couplesGender('all',this)">Todos</button>
     <button class="season-btn" id="cg-m" onclick="window._couplesGender('M',this)">Masculino</button>
@@ -215,30 +218,21 @@ export function init() {
       <th style="width:2.5rem">Pos.</th>
       <th>Cat.</th>
       <th>Pareja</th>
-      <th style="text-align:right">Partidos</th>
+      <th class="sortable" style="text-align:right" data-col="games">Partidos</th>
       <th style="text-align:right">1er partido</th>
       <th style="text-align:right">Último</th>
       <th class="sortable" style="text-align:right" data-col="total_score">Total</th>
-      <th class="sortable sort-desc" style="text-align:right" data-col="avg_score">Media ▼</th>
+      <th class="sortable sort-desc" style="text-align:right" data-col="avg_score">Media</th>
       <th class="sortable" style="text-align:right" data-col="best_score">Mejor</th>
-      <th style="text-align:right">Mod. comp.</th>
-      <th style="text-align:right">Calidad</th>
-      <th style="text-align:right">Factor res.</th>
     </tr>
     <tr class="filter-row">
-      <td></td>
-      <td><select id="fc-cat" onchange="window._couplesFilter()">
-        <option value="">Todas</option>
-        <option value="elite">Élite</option>
-        <option value="honor">Honor</option>
-        <option value="primera">1ª Div.</option>
-      </select></td>
+      <td></td><td></td>
       <td><input id="fc-name" type="text" placeholder="buscar…"></td>
       <td><input id="fc-mingames" type="number" placeholder="≥" min="1"></td>
       <td></td><td></td>
       <td></td>
       <td><input id="fc-avg" type="number" placeholder="≥" step=".001"></td>
-      <td></td><td></td><td></td><td></td>
+      <td></td>
     </tr>
   </thead>
   <tbody id="couples-body"></tbody>
@@ -263,10 +257,16 @@ export function init() {
 
   const dbl = debounce(() => { _state.page = 1; _load(); });
   el("fc-name")?.addEventListener("input", () => { _state.name = el("fc-name").value.trim(); dbl(); });
-  el("fc-avg")?.addEventListener("input",  () => { dbl(); });  // avg filter is informational only (server ignores it currently)
+  el("fc-avg")?.addEventListener("input",  () => { dbl(); });
   el("fc-mingames")?.addEventListener("input", () => { _state.min_games = parseInt(el("fc-mingames").value) || 1; dbl(); });
-  el("fc-cat")?.addEventListener("change", () => { _state.cat = el("fc-cat").value; _state.page = 1; _load(); });
 
+  window._couplesCat = (cat, btn) => {
+    if (_state.cats.has(cat)) _state.cats.delete(cat);
+    else _state.cats.add(cat);
+    btn.classList.toggle("active", _state.cats.has(cat));
+    _state.page = 1;
+    _load();
+  };
   window._couplesGender = (g, btn) => {
     _state.gender = g;
     panel.querySelectorAll("#cg-all,#cg-m,#cg-f").forEach(b => b.classList.remove("active"));
@@ -275,15 +275,14 @@ export function init() {
     _load();
   };
   window._couplesClear = () => {
-    _state = { ..._state, cat:"", gender:"all", min_games:1, name:"", page:1 };
-    el("fc-cat").value = "";
+    _state = { ..._state, cats: new Set(), gender:"all", min_games:1, name:"", page:1 };
     el("fc-name").value = "";
     el("fc-mingames").value = "";
+    panel.querySelectorAll("#cc-elite,#cc-honor,#cc-primera").forEach(b => b.classList.remove("active"));
     panel.querySelectorAll("#cg-all,#cg-m,#cg-f").forEach(b => b.classList.remove("active"));
     el("cg-all")?.classList.add("active");
     _load();
   };
-  window._couplesFilter = () => { _state.cat = el("fc-cat").value; _state.page = 1; _load(); };
 
   el("c-modal-bg")?.addEventListener("click", e => {
     if (e.target === el("c-modal-bg")) el("c-modal-bg").style.display = "none";

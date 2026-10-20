@@ -86,8 +86,8 @@ def load_all_pdfs() -> int:
     import os
     existing = {(e["raw_name"], e["season_id"]) for e in db.get_catalog()}
     total_new = 0
-    for season_id in config.CATALOG_SEASONS:
-        files = config.PDF_FILES.get(season_id, {})
+    for season_id in config.PDF_FILES:
+        files = config.PDF_FILES[season_id]
         season_entries: list[dict] = []
         for category, filename in files.items():
             if not os.path.exists(filename):

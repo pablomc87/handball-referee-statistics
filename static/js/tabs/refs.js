@@ -12,6 +12,9 @@ function _renderRows(data) {
     const color = CAT_COLOR[cat] || "#64748b";
     const label = CAT_LABEL[cat] || "?";
     const badge = `<span class="badge" style="background:${color}">${label}</span>`;
+    const gColor = ident.gender === "M" ? "#38bdf8" : ident.gender === "F" ? "#f472b6" : "#475569";
+    const gLabel = ident.gender === "M" ? "♂" : ident.gender === "F" ? "♀" : "?";
+    const genderBadge = `<span style="color:${gColor}">${gLabel}</span>`;
 
     const seasonBadges = ident.season_ids.map(s => {
       const sc  = ident.seasons[s]?.category || "?";
@@ -29,6 +32,7 @@ function _renderRows(data) {
     return `<tr data-has-variants="${ident.has_variants?1:0}" data-name="${ident.canonical.toLowerCase()}">
       <td style="font-weight:500">${ident.canonical}</td>
       <td>${badge}</td>
+      <td>${genderBadge}</td>
       <td style="white-space:nowrap">${seasonBadges}</td>
       <td style="font-size:.8rem">${variants}</td>
     </tr>`;
@@ -52,12 +56,12 @@ function _applyFilters() {
 export async function load() {
   if (_data) return;   // static — no season dependency
   const tbody = el("refs-body");
-  if (tbody) tbody.innerHTML = `<tr class="loading-row"><td colspan="4"><div class="spinner"></div></td></tr>`;
+  if (tbody) tbody.innerHTML = `<tr class="loading-row"><td colspan="5"><div class="spinner"></div></td></tr>`;
   try {
     _data = await api.getReferees({});
     _applyFilters();
   } catch(e) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="color:#ef4444">${e.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="color:#ef4444">${e.message}</td></tr>`;
   }
 }
 
@@ -78,7 +82,7 @@ export function init() {
 <div class="section">
 <table id="refs-table">
   <thead><tr>
-    <th>Árbitro</th><th>Cat.</th><th>Temporadas</th><th>Variantes de nombre</th>
+    <th>Árbitro</th><th>Cat.</th><th>Gén.</th><th>Temporadas</th><th>Variantes de nombre</th>
   </tr></thead>
   <tbody id="refs-body"></tbody>
 </table>

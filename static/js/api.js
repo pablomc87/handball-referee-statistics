@@ -3,8 +3,11 @@ const BASE = "/api";
 async function _get(path, params = {}) {
   const url = new URL(BASE + path, location.origin);
   Object.entries(params)
-    .filter(([, v]) => v !== null && v !== undefined && v !== "")
-    .forEach(([k, v]) => url.searchParams.set(k, v));
+    .filter(([, v]) => v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0))
+    .forEach(([k, v]) => {
+      if (Array.isArray(v)) v.forEach(item => url.searchParams.append(k, item));
+      else url.searchParams.set(k, v);
+    });
   const r = await fetch(url);
   if (!r.ok) throw new Error(`API ${r.status}: ${path}`);
   return r.json();
@@ -19,4 +22,4 @@ export const getCompetitions = (season) => _get("/competitions", { season });
 export const getReferees     = (p)      => _get("/referees", p);
 export const getMovements    = (t)      => _get("/movements", { transition: t });
 export const getTransitions  = ()       => _get("/movements/transitions");
-export const getProgression  = (season) => _get(`/progression/${season}`);
+export const getProgression  = (season, gender) => _get(`/progression/${season}`, gender ? { gender } : {});

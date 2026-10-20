@@ -30,29 +30,20 @@ WITH base AS (
         ROUND(AVG(ns.score_factor), 3)      AS avg_score_factor,
         MIN(m.date)                          AS first_game,
         MAX(m.date)                          AS last_game,
-        -- Each referee's highest catalog category seen across the filtered games
-        COALESCE(MAX(rc_a.category), '?')   AS cat_a,
-        COALESCE(MAX(rc_b.category), '?')   AS cat_b,
-        -- Majority-vote gender: 'F' if more feminine games than masculine, else 'M'
-        CASE
-            WHEN SUM(CASE WHEN t.categoria_name LIKE '%FEMENIN%' THEN 1 ELSE 0 END)
-               > SUM(CASE WHEN t.categoria_name NOT LIKE '%FEMENIN%' THEN 1 ELSE 0 END)
-            THEN 'F'
-            WHEN SUM(CASE WHEN t.categoria_name NOT LIKE '%FEMENIN%' THEN 1 ELSE 0 END)
-               > SUM(CASE WHEN t.categoria_name LIKE '%FEMENIN%' THEN 1 ELSE 0 END)
-            THEN 'M'
-            ELSE ''
-        END AS gender,
-        -- best_cat: the higher-ranked (lower numeric level) category of the two referees
-        CASE
-            WHEN (CASE COALESCE(MAX(rc_a.category),'?')
-                    WHEN 'elite' THEN 0 WHEN 'honor' THEN 1
-                    WHEN 'primera' THEN 2 ELSE 3 END)
-               <= (CASE COALESCE(MAX(rc_b.category),'?')
-                    WHEN 'elite' THEN 0 WHEN 'honor' THEN 1
-                    WHEN 'primera' THEN 2 ELSE 3 END)
-            THEN COALESCE(MAX(rc_a.category), '?')
-            ELSE COALESCE(MAX(rc_b.category), '?')
+        -- Each referee's best catalog category (lowest rank = best: elite<honor<primera)
+        CASE MIN(CASE rc_a.category WHEN 'elite' THEN 1 WHEN 'honor' THEN 2 WHEN 'primera' THEN 3 ELSE 4 END)
+            WHEN 1 THEN 'elite' WHEN 2 THEN 'honor' WHEN 3 THEN 'primera' ELSE '?' END AS cat_a,
+        CASE MIN(CASE rc_b.category WHEN 'elite' THEN 1 WHEN 'honor' THEN 2 WHEN 'primera' THEN 3 ELSE 4 END)
+            WHEN 1 THEN 'elite' WHEN 2 THEN 'honor' WHEN 3 THEN 'primera' ELSE '?' END AS cat_b,
+        -- best_cat: better of the two referees' best categories (SQLite has no LEAST, use CASE)
+        CASE WHEN
+            MIN(CASE rc_a.category WHEN 'elite' THEN 1 WHEN 'honor' THEN 2 WHEN 'primera' THEN 3 ELSE 4 END)
+            <=
+            MIN(CASE rc_b.category WHEN 'elite' THEN 1 WHEN 'honor' THEN 2 WHEN 'primera' THEN 3 ELSE 4 END)
+        THEN CASE MIN(CASE rc_a.category WHEN 'elite' THEN 1 WHEN 'honor' THEN 2 WHEN 'primera' THEN 3 ELSE 4 END)
+                 WHEN 1 THEN 'elite' WHEN 2 THEN 'honor' WHEN 3 THEN 'primera' ELSE '?' END
+        ELSE CASE MIN(CASE rc_b.category WHEN 'elite' THEN 1 WHEN 'honor' THEN 2 WHEN 'primera' THEN 3 ELSE 4 END)
+                 WHEN 1 THEN 'elite' WHEN 2 THEN 'honor' WHEN 3 THEN 'primera' ELSE '?' END
         END AS best_cat
     FROM referees r
     JOIN matches m   ON m.match_id  = r.match_id
@@ -157,7 +148,7 @@ def get_stats(conn: sqlite3.Connection, season: str | None) -> dict:
 def get_couples(
     conn: sqlite3.Connection,
     season: str,
-    cat: str | None,
+    cats: list[str],
     gender: str | None,
     min_games: int,
     name: str | None,
@@ -193,9 +184,10 @@ def get_couples(
     outer_parts = ["games >= ?"]
     outer_params: list[Any] = [min_games]
 
-    if cat:
-        outer_parts.append("best_cat = ?")
-        outer_params.append(cat)
+    if cats:
+        placeholders = ",".join("?" * len(cats))
+        outer_parts.append(f"best_cat IN ({placeholders})")
+        outer_params.extend(cats)
     if name:
         outer_parts.append("(LOWER(ref_a) LIKE ? OR LOWER(ref_b) LIKE ?)")
         pat = f"%{name.lower()}%"
@@ -306,22 +298,9 @@ def get_games(
         WHERE {' AND '.join(parts)}
     """
 
-    # Gender filter wraps with subquery since it's a computed column
-    gender_wrap_open = gender_wrap_where = gender_wrap_close = ""
-    gender_params: list[Any] = []
     if gender:
-        gender_wrap_open = """
-            SELECT * FROM (
-                SELECT m.match_id,
-                    CASE WHEN t.categoria_name LIKE '%FEMENIN%' THEN 'F'
-                         WHEN t.categoria_name LIKE '%MASCULIN%' THEN 'M'
-                         ELSE '' END AS _gender,
-        """
-        # We'll inline the full select inside the subquery — simpler: just add to WHERE
-        # Use LIKE directly since all categoria_name are already normalized
-        filt = "t.categoria_name LIKE '%FEMENIN%'" if gender == "F" else "t.categoria_name NOT LIKE '%FEMENIN%' AND t.categoria_name LIKE '%MASCULIN%'"
-        parts.append(f"({filt})")
-        # Rebuild base_sql with updated parts
+        filt = "t.categoria_name LIKE '%FEMENIN%'" if gender == "F" else "(t.categoria_name NOT LIKE '%FEMENIN%' AND t.categoria_name LIKE '%MASCULIN%')"
+        parts.append(filt)
         base_sql = f"""
             FROM matches m
             JOIN torneos t ON t.torneo_id = m.torneo_id
@@ -399,12 +378,15 @@ def build_referee_identities(conn: sqlite3.Connection) -> list[dict]:
     def _alias(ts: str) -> str:
         return aliases.get(ts, ts)
 
-    all_entries = _rows(conn, "SELECT season_id, normalized, category, raw_name FROM referees_catalog")
+    all_entries = _rows(conn, "SELECT season_id, normalized, category, raw_name, gender, gender_confidence FROM referees_catalog")
     by_season: dict = defaultdict(dict)
     for r in all_entries:
-        by_season[r["season_id"]][r["normalized"]] = {"category": r["category"], "raw_name": r["raw_name"]}
+        by_season[r["season_id"]][r["normalized"]] = {
+            "category": r["category"], "raw_name": r["raw_name"],
+            "gender": r["gender"] or "", "gender_confidence": r["gender_confidence"] or 0.0,
+        }
 
-    available = [s for s in config.CATALOG_SEASONS if s in by_season]
+    available = sorted(by_season.keys(), reverse=True)
     identities: dict = {}
 
     for season_id in available:
@@ -445,6 +427,14 @@ def build_referee_identities(conn: sqlite3.Connection) -> list[dict]:
         ident["variants"]     = variants
         ident["has_variants"] = bool(variants)
         ident["season_ids"]   = sorted(seasons.keys(), reverse=True)
+        # Gender: use the detection with the highest confidence across all seasons
+        best_g, best_conf = "", 0.0
+        for entry in seasons.values():
+            g, c = entry.get("gender", ""), entry.get("gender_confidence", 0.0)
+            if g and c > best_conf:
+                best_g, best_conf = g, c
+        ident["gender"] = best_g
+        ident["gender_confidence"] = round(best_conf, 2)
         result.append(ident)
 
     return sorted(result, key=lambda r: r["canonical"].lower())
@@ -518,7 +508,7 @@ def build_referee_movements(conn: sqlite3.Connection, identities: list[dict] | N
         ts = _aliases_map.get(_nm_cross(norm), _nm_cross(norm))
         return _canonical_map.get(ts) or _canonical_name(raw)
 
-    available = [s for s in config.CATALOG_SEASONS if s in by_season]
+    available = sorted(by_season.keys(), reverse=True)
 
     # Pre-aggregate nomination stats per (referee, season) so they can be
     # attached to each movement row without extra per-row queries.
@@ -641,17 +631,25 @@ def build_referee_movements(conn: sqlite3.Connection, identities: list[dict] | N
 
 # ── Progression ───────────────────────────────────────────────────────────────
 
-def build_progression(conn: sqlite3.Connection, season_id: str) -> dict:
+def build_progression(conn: sqlite3.Connection, season_id: str, gender: str | None = None) -> dict:
     """
     Build per-couple cumulative-average-score progression for a season.
-    Couples are grouped by (category, gender); within each group the ranking is
-    re-computed after every game date so the chart shows rank movement over time.
+    Couples are grouped by category; within each group the ranking is re-computed
+    after every game date so the chart shows rank movement over time.
+    If gender is given ('M' or 'F'), only games of that gender are counted and
+    only couples with at least one such game appear — same approach as get_couples().
     Only emits a data point when a couple plays or their rank changes, to keep
     the payload small. The final point is always the season-end date/rank.
     """
     import name_matcher
 
     name_map = name_matcher.build_name_map(season_id=season_id)
+
+    gender_filter = ""
+    if gender == "F":
+        gender_filter = "AND t.categoria_name LIKE '%FEMENIN%'"
+    elif gender == "M":
+        gender_filter = "AND t.categoria_name NOT LIKE '%FEMENIN%' AND t.categoria_name LIKE '%MASCULIN%'"
 
     rows = _rows(conn, f"""
         SELECT
@@ -666,12 +664,12 @@ def build_progression(conn: sqlite3.Connection, season_id: str) -> dict:
         WHERE r.referee_1 != '' AND r.referee_2 != ''
           AND r.referee_1 IS NOT NULL AND r.referee_2 IS NOT NULL
           AND t.season_id = '{season_id}'
+          {gender_filter}
         ORDER BY m.date ASC
     """)
 
     couple_games: dict = defaultdict(list)
     couple_cats:  dict = {}
-    couple_genders: dict = {}
 
     for row in rows:
         ck = (row["ref_a"], row["ref_b"])
@@ -688,20 +686,20 @@ def build_progression(conn: sqlite3.Connection, season_id: str) -> dict:
             else:
                 cat = None
             couple_cats[ck] = cat
-            couple_genders[ck] = gender_from_categoria(row["categoria_name"])
 
     def _valid_date(d: str) -> bool:
         return bool(d and len(d) == 10 and d[4] == "-")
 
+    # Group by category only — gender filtering was already done in the SQL query
     groups: dict = defaultdict(list)
     for c in couple_games:
         cat = couple_cats.get(c)
         if cat:
-            groups[(cat, couple_genders.get(c, ""))].append(c)
+            groups[cat].append(c)
 
     result: dict = {}
 
-    for (cat, gen), category_couples in groups.items():
+    for cat, category_couples in groups.items():
         all_dates = sorted({g["date"] for c in category_couples for g in couple_games[c] if _valid_date(g["date"])})
         if not all_dates:
             continue
@@ -774,7 +772,7 @@ def build_progression(conn: sqlite3.Connection, season_id: str) -> dict:
             couple_key = f"{ck[0]}|||{ck[1]}"
             result[couple_key] = {
                 "ref_a":    ck[0], "ref_b": ck[1],
-                "category": cat,   "gender": gen,
+                "category": cat,
                 "games":    len(played),
                 "progression":    progression,
                 "season_end":     end_date,

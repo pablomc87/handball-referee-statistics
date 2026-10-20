@@ -56,6 +56,9 @@ for _router in [seasons, stats, couples, games, referees, movements, progression
     app.include_router(_router.router, prefix="/api")
 
 
+_TAB_PATHS = {"/stats", "/couples", "/progression", "/games", "/moves", "/refs"}
+
 @app.get("/")
-def index():
+@app.get("/{tab}")
+def index(tab: str = ""):
     return FileResponse(str(_static / "index.html"))

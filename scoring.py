@@ -15,14 +15,15 @@ def _phase_multiplier(torneo_name: str) -> float:
 
 
 def _gender_multiplier(categoria_name: str) -> float:
-    return 1.0 if "MASCULIN" in categoria_name.upper() else config.WOMEN_MULTIPLIER
+    return config.WOMEN_MULTIPLIER if "FEMENIN" in categoria_name.upper() else 1.0
 
 
-def _tier_multiplier(categoria_name: str) -> float:
+def _tier_multiplier(categoria_name: str, season_id: str) -> float:
     cat = categoria_name.upper()
-    for keyword, mult in config.TIER_MODIFIERS:
+    tiers = config.CATEGORY_TIERS.get(season_id, config.CATEGORY_TIERS["default"])
+    for keyword, tier in tiers:
         if keyword in cat:
-            return mult
+            return config.TIER_WEIGHTS[tier]
     return 1.0  # top division (ASOBAL, Liga Guerreras Iberdrola)
 
 
@@ -95,7 +96,7 @@ def compute_all_scores() -> int:
                                          "categoria_name", "competicion_name", "torneo_name")}
 
         comp_mod = competition_modifier(torneo)
-        tier_mod = _tier_multiplier(torneo["categoria_name"])
+        tier_mod = _tier_multiplier(torneo["categoria_name"], season_id)
         rank_home, rank_away, n = standings_mod.get_match_standings(match, torneo)
         mq = match_quality(rank_home, rank_away, n, tier_mod)
         sf = score_factor(match)

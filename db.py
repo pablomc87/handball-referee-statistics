@@ -1,4 +1,5 @@
 import json
+import re
 import sqlite3
 import threading
 from datetime import date, datetime
@@ -53,7 +54,31 @@ _CATEGORIA_ALIASES: dict[str, str] = {
     "CAMPEONATO ESTATAL DE DIVISION HONOR MASCULINO":       "CAMPEONATO ESTATAL DE DIVISION DE HONOR MASCULINA",
     "CAMPEONATO ESTATAL DE DIVISION HONOR PLATA FEMENINA":  "CAMPEONATO ESTATAL DE DIVISION DE HONOR PLATA FEMENINA",
     "CAMPEONATO ESTATAL DE DIVISION HONOR PLATA MASCULINA": "CAMPEONATO ESTATAL DE DIVISION DE HONOR PLATA MASCULINA",
+    # Pre-2021-22 top female had no ELITE suffix — same competition
+    "CAMPEONATO ESTATAL DE DIVISION DE HONOR FEMENINA":     "CAMPEONATO ESTATAL DE DIVISION DE HONOR ELITE FEMENINA",
 }
+
+
+_COMPETICION_ALIASES: dict[str, str] = {
+    # Primera División Masculina — varies between "ESTATAL" infix and accent
+    "PRIMERA DIVISION ESTATAL MASCULINA":  "PRIMERA DIVISION MASCULINA",
+    "PRIMERA DIVISIÓN MASCULINA":          "PRIMERA DIVISION MASCULINA",
+    # Plata Masculina — accent and gender-suffix variants
+    "DIVISION HONOR PLATA MASCULINO":      "DIVISION DE HONOR PLATA MASCULINA",
+    "DIVISIÓN HONOR PLATA MASCULINA":      "DIVISION DE HONOR PLATA MASCULINA",
+    "DIVISIÓN DE HONOR PLATA MASCULINA":   "DIVISION DE HONOR PLATA MASCULINA",
+    # Oro Femenina — accent variant + preemptive typo alias
+    "DIVISIÓN DE HONOR ORO FEMENINA":      "DIVISION DE HONOR ORO FEMENINA",
+    "DIVISIN DE HONOR ORO FEMENINA":       "DIVISION DE HONOR ORO FEMENINA",
+    # Plata Femenina — accent and missing-"DE" variants
+    "DIVISIÓN HONOR PLATA FEMENINA":       "DIVISION DE HONOR PLATA FEMENINA",
+    "DIVISIÓN DE HONOR PLATA FEMENINA":    "DIVISION DE HONOR PLATA FEMENINA",
+}
+
+# Regex: PRIMERA FASE - GRUPO X  →  LIGA REGULAR - GRUPO X (group letter preserved)
+_PRIMERA_FASE_RE = re.compile(r"^PRIMERA FASE - GRUPO ([A-Za-z])$")
+# Regex: LIGA REGULAR - GRUPO x  →  LIGA REGULAR - GRUPO X (uppercase fix)
+_GRUPO_LOWER_RE  = re.compile(r"^(LIGA REGULAR - GRUPO )([a-z])$")
 
 
 def _norm_categoria(name: str) -> str:
@@ -62,9 +87,28 @@ def _norm_categoria(name: str) -> str:
     return _CATEGORIA_ALIASES.get(name, name)
 
 
+def _norm_competicion(name: str) -> str:
+    """Normalize competition name variants to a single canonical form."""
+    return _COMPETICION_ALIASES.get(name, name)
+
+
+def _norm_torneo_name(name: str) -> str:
+    """Normalize torneo names: PRIMERA FASE - GRUPO X → LIGA REGULAR - GRUPO X."""
+    name = name.replace("ÚNICO", "UNICO")
+    m = _PRIMERA_FASE_RE.match(name)
+    if m:
+        return f"LIGA REGULAR - GRUPO {m.group(1).upper()}"
+    m = _GRUPO_LOWER_RE.match(name)
+    if m:
+        return f"{m.group(1)}{m.group(2).upper()}"
+    return name
+
+
 def upsert_torneo(d: dict) -> None:
     d = dict(d)
-    d["categoria_name"] = _norm_categoria(d.get("categoria_name") or "")
+    d["categoria_name"]    = _norm_categoria(d.get("categoria_name") or "")
+    d["competicion_name"]  = _norm_competicion(d.get("competicion_name") or "")
+    d["torneo_name"]       = _norm_torneo_name(d.get("torneo_name") or "")
     with _write_lock, _conn() as conn:
         conn.execute(
             """

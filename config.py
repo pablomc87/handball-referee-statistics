@@ -1,6 +1,5 @@
 BASE_URL = "https://resultadosbalonmano.isquad.es"
 SEASON_ID      = "2526"
-PREV_SEASON_ID = "2425"
 TERRITORIAL_ID = "9999"
 SURFACE_ID = "1"
 AMBITO_NATIONAL = "0"
@@ -25,6 +24,8 @@ TARGET_CATEGORIES = {
     "CAMPEONATO ESTATAL DE DIVISION HONOR PLATA MASCULINA",
     "CAMPEONATO ESTATAL DE DIVISION HONOR PLATA FEMENINA",
     "CAMPEONATO ESTATAL DE DIVISION HONOR FEMENINA",
+    # 2019-20 and 2020-21: top female had no ELITE suffix
+    "CAMPEONATO ESTATAL DE DIVISION DE HONOR FEMENINA",
 }
 
 # ── Scoring ──────────────────────────────────────────────────────────────────
@@ -35,14 +36,54 @@ STANDINGS_LAG_DAYS = 21
 # Gender multiplier: women's competitions relative to men's
 WOMEN_MULTIPLIER = 0.75
 
-# Tier modifier: competition prestige level (checked in order, first match wins)
-# Applied on top of gender and phase multipliers
-TIER_MODIFIERS: list[tuple[str, float]] = [
-    ("PRIMERA DIVISION", 0.65),   # Primera Nacional — same tier as Oro
-    ("ORO",              0.65),   # D.H. Oro Femenina — same tier as Primera
-    ("PLATA",            0.45),   # D.H. Plata (both genders) — below the two above
-    # Default → 1.00  (top: ASOBAL, Liga Guerreras Iberdrola)
-]
+# Tier → modifier value. Tier 1 = top (ASOBAL / Élite Femenina).
+TIER_WEIGHTS: dict[int, float] = {
+    1: 1.00,
+    2: 0.65,
+    3: 0.45,
+}
+
+# Season-by-season category tier levels.
+# Each entry is an ordered list of (keyword, tier) checked against categoria_name
+# (first match wins). "default" is used for any season not explicitly listed.
+#
+# Female structure changed in 2022-23 when División de Honor Oro Femenina was
+# introduced as a new tier-2, pushing Plata Femenina down to tier 3.
+# Before that, the top female category had no "ELITE" suffix.
+#
+# Male structure has been stable: DH Masculina (1) > Plata (2) > Primera (3).
+CATEGORY_TIERS: dict[str, list[tuple[str, int]]] = {
+    # 2022-23 onwards: 3-tier female system with Oro at tier 2
+    "default": [
+        ("ELITE FEMENINA",   1),
+        ("HONOR MASCULINA",  1),
+        ("ORO",              2),
+        ("PRIMERA DIVISION", 2),
+        ("PLATA",            3),
+    ],
+    # 2021-22: Oro didn't exist yet; Plata was tier 2 for both genders.
+    # Top female stored as ELITE FEMENINA in DB (site label varied).
+    "2122": [
+        ("ELITE FEMENINA",   1),
+        ("HONOR FEMENINA",   1),  # alternate site label for same category
+        ("HONOR MASCULINA",  1),
+        ("HONOR MASCULINO",  1),
+        ("PRIMERA DIVISION", 2),
+        ("PLATA",            2),
+    ],
+    # 2020-21 and 2019-20: same 2-tier structure; top female normalised to ELITE FEMENINA
+    "2021": [
+        ("HONOR MASCULINA",  1),
+        ("PRIMERA DIVISION", 2),
+        ("PLATA",            2),
+        # ELITE FEMENINA falls through to 1.0 (tier 1) — correct
+    ],
+    "1920": [
+        ("HONOR MASCULINA",  1),
+        ("PRIMERA DIVISION", 2),
+        ("PLATA",            2),
+    ],
+}
 
 # Phase multipliers keyed by keyword (checked in order — most specific first)
 PHASE_MULTIPLIERS: list[tuple[str, float]] = [
@@ -73,7 +114,7 @@ PDF_CATEGORIES = {
 }
 
 # Ordered newest → oldest; used to enumerate consecutive season transitions
-CATALOG_SEASONS = ["2526", "2425", "2324", "2223", "2122", "2021", "1920", "1819", "1718"]
+CATALOG_SEASONS = ["2526", "2425", "2324", "2223", "2122", "2021", "1920"]
 
 PDF_FILES = {
     "2526": {
