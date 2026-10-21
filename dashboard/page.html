@@ -5,6 +5,11 @@
 .hs h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
 .hs p { margin: 0; line-height: 1.5; }
 .hs .lede { max-width: 70ch; color: var(--color-fg-muted); }
+.hs .take { font-size: var(--cds-font-size-body, 1rem); line-height: 1.45; max-width: 75ch; margin: 0; font-variant-numeric: tabular-nums; }
+.hs details summary { cursor: pointer; font-weight: var(--cds-font-weight-medium); }
+.hs dl { margin: .6rem 0 0; display: grid; grid-template-columns: max-content 1fr; gap: .4rem 1rem; font-size: var(--cds-font-size-caption); }
+.hs dt { font-weight: var(--cds-font-weight-medium); }
+.hs dd { margin: 0; color: var(--color-fg-muted); }
 .hs .note { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); max-width: 75ch; }
 .hs .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--cds-gap-md); }
 .hs .card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
@@ -35,58 +40,72 @@
 
 <div class="hs">
   <header>
-    <h1>Sanctions on team officials</h1>
-    <p class="lede" id="lede">Coaches and staff sanctioned with a warning, a 2-minute suspension or a disqualification, and what happened to the score afterwards. Liga ASOBAL, Liga Guerreras Iberdrola, Ligue Butagaz Énergie, StarLigue and ProLigue.</p>
+    <h1>Coach and bench-staff sanctions</h1>
+    <p class="lede" id="lede">What happens to the score after a coach or someone on the bench (not a player) gets a warning, a 2-minute suspension or a disqualification. Covers Liga ASOBAL, Liga Guerreras Iberdrola, Ligue Butagaz Énergie, StarLigue and ProLigue.</p>
   </header>
+
+  <details class="card" open>
+    <summary>How to read this page</summary>
+    <dl>
+      <dt>Usually</dt><dd>What normally happens to a team in the same minute, score and run of play, without any sanction. It is the fair comparison for every number below.</dd>
+      <dt>Goals vs normal</dt><dd>How many more (or fewer) goals the team ended up with over the next 10 minutes, compared with what usually happens in that situation.</dd>
+      <dt>Uncertainty</dt><dd>How far a number could be off by chance. If a bar touches zero, the effect is too small to tell apart from chance.</dd>
+      <dt>Winning, tied, losing</dt><dd>The score at the moment of the sanction, from the sanctioned team's point of view.</dd>
+      <dt>Player reference</dt><dd>A player's 2-minute suspension, shown as a case where we know the team is hurt (it plays a man down).</dd>
+    </dl>
+  </details>
 
   <section class="kpis">
     <div class="card kpi">
-      <span class="cap">Staff sanctions analysed</span>
+      <span class="cap">Bench-staff sanctions analysed</span>
       <span class="big dash-skeleton" id="k-n" data-source="summary" data-field="n" data-where="population=staff&amp;dimension=total&amp;group=all">—</span>
       <span class="vs">All leagues and seasons loaded so far</span>
     </div>
     <div class="card kpi">
       <span class="cap">Sanctioned team scores the next goal</span>
       <span class="big dash-skeleton" id="k-ng" data-source="summary" data-field="next_goal_own_obs" data-where="population=staff&amp;dimension=total&amp;group=all">—</span>
-      <span class="vs">Expected in the same situation: <span id="k-ng-e" data-source="summary" data-field="next_goal_own_exp" data-where="population=staff&amp;dimension=total&amp;group=all">—</span></span>
+      <span class="vs">Usually, with no sanction: <span id="k-ng-e" data-source="summary" data-field="next_goal_own_exp" data-where="population=staff&amp;dimension=total&amp;group=all">—</span></span>
     </div>
     <div class="card kpi">
-      <span class="cap">Teams leading when sanctioned go on to win</span>
+      <span class="cap">Teams that were winning when sanctioned still win</span>
       <span class="big dash-skeleton" id="k-lw" data-source="summary" data-field="win_obs" data-where="population=staff&amp;dimension=state&amp;group=leading">—</span>
-      <span class="vs">Expected: <span id="k-lw-e" data-source="summary" data-field="win_exp" data-where="population=staff&amp;dimension=state&amp;group=leading">—</span></span>
+      <span class="vs">Usually: <span id="k-lw-e" data-source="summary" data-field="win_exp" data-where="population=staff&amp;dimension=state&amp;group=leading">—</span></span>
     </div>
     <div class="card kpi">
-      <span class="cap">Net goals from sanction to final whistle</span>
+      <span class="cap">Goal difference gained from the sanction to the final whistle</span>
       <span class="big dash-skeleton" id="k-sf" data-source="summary" data-field="swing_final_obs" data-where="population=staff&amp;dimension=total&amp;group=all">—</span>
-      <span class="vs">Expected: <span id="k-sf-e" data-source="summary" data-field="swing_final_exp" data-where="population=staff&amp;dimension=total&amp;group=all">—</span></span>
+      <span class="vs">Usually: <span id="k-sf-e" data-source="summary" data-field="swing_final_exp" data-where="population=staff&amp;dimension=total&amp;group=all">—</span></span>
     </div>
   </section>
 
   <section class="card">
     <h2>Does the result change?</h2>
-    <p class="note">Share of teams that win, by the score state when the staff member was sanctioned. The hollow dot is what teams in the same minute, lead and run of play normally do. Regulation time only.</p>
-    <div class="legend"><span><i style="background: var(--cds-chart-muted)"></i>Expected</span><span><i id="lg-obs"></i>After a staff sanction</span></div>
+    <p class="take" id="t-win"></p>
+    <p class="note">Share of teams that win, by the score when the sanction was given. The hollow dot is what usually happens in that situation. Regulation time only.</p>
+    <div class="legend"><span><i style="background: var(--cds-chart-muted)"></i>Usually (no sanction)</span><span><i id="lg-obs"></i>After a bench-staff sanction</span></div>
     <div class="chart dash-skeleton" id="c-win" data-source="summary"></div>
   </section>
 
   <section class="card">
     <h2>Who scores next?</h2>
-    <p class="note">How often the sanctioned team scores the next goal. The baseline is what teams in the same situation do in any minute of any game, which comes out near half. Who has the ball is not in the data and is not matched. A 2-minute suspension of a player is shown as a comparison with a known effect.</p>
+    <p class="take" id="t-next"></p>
+    <p class="note">How often the sanctioned team scores the next goal. The usual rate is what teams in the same situation do in any minute of any game, which comes out near half. Who has the ball is not in the data and is not matched. A 2-minute suspension of a player is shown as a comparison with a known effect.</p>
     <div class="chart dash-skeleton" id="c-next" data-source="summary"></div>
   </section>
 
   <section class="card">
-    <h2>Does the game dynamic shift?</h2>
-    <p class="note">Net goals the sanctioned team gains or loses in the next 10 minutes, compared with the baseline. Bars show the 95% interval; a group whose interval crosses zero shows no clear effect. Games without a clock are not included.</p>
+    <h2>Does the game change in the next 10 minutes?</h2>
+    <p class="take" id="t-swing"></p>
+    <p class="note">How many goals better or worse than normal the sanctioned team did over the next 10 minutes. Each bar is the likely range: when it touches zero (the vertical line) the effect is too small to tell apart from chance. Filled dots are clear differences. Games without a clock are not included.</p>
     <div class="chart dash-skeleton" id="c-swing" data-source="summary"></div>
   </section>
 
   <section class="card">
-    <h2>Result by score when sanctioned</h2>
-    <p class="note">Share of teams that won, drew or lost in regulation, against what teams in the same situation normally do. Margin change is the net goals from the sanction to the end.</p>
+    <h2>How the game ended, by score when sanctioned</h2>
+    <p class="note">Share of teams that won, drew or lost in regulation, against what usually happens in that situation. Goal difference change is the sanctioned team's goal difference at the final whistle minus its goal difference when the sanction was given.</p>
     <div class="scroll">
       <table id="t-trans" data-source="transitions" data-row-key="dimension,group,state">
-        <thead><tr><th data-field="state">Score when sanctioned</th><th data-field="n">Sanctions</th><th data-field="win">Win</th><th data-field="win_exp">Exp.</th><th data-field="draw">Draw</th><th data-field="draw_exp">Exp.</th><th data-field="loss">Loss</th><th data-field="loss_exp">Exp.</th><th data-field="final_margin_change">Margin change</th><th data-field="final_margin_change_exp">Exp.</th></tr></thead>
+        <thead><tr><th data-field="state">Score when sanctioned</th><th data-field="n">Sanctions</th><th data-field="win">Win</th><th data-field="win_exp">Usually</th><th data-field="draw">Draw</th><th data-field="draw_exp">Usually</th><th data-field="loss">Loss</th><th data-field="loss_exp">Usually</th><th data-field="final_margin_change">Goal difference change</th><th data-field="final_margin_change_exp">Usually</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -94,11 +113,11 @@
 
   <section class="card">
     <h2>Breakdowns</h2>
-    <p class="note">Staff sanctions only. Win, next goal and the 10-minute swing are shown with their expected values.</p>
+    <p class="note">Bench-staff sanctions only. Win and next goal are shown next to what usually happens; the last two columns say how many goals better or worse than normal the team did in the next 10 minutes, and how uncertain that is.</p>
     <div class="tabs" id="tabs" role="tablist"></div>
     <div class="scroll">
       <table id="t-break" data-source="summary" data-row-key="population,dimension,group">
-        <thead><tr><th data-field="group">Group</th><th data-field="n">Sanctions</th><th data-field="lead%">Leading %</th><th data-field="win_obs">Win</th><th data-field="win_exp">Exp.</th><th data-field="next_goal_own_obs">Next goal</th><th data-field="next_goal_own_exp">Exp.</th><th data-field="swing10_excess">10-min swing vs baseline</th><th data-field="swing10_se">± se</th></tr></thead>
+        <thead><tr><th data-field="group">Group</th><th data-field="n">Sanctions</th><th data-field="lead%">Winning when sanctioned</th><th data-field="win_obs">Win</th><th data-field="win_exp">Usually</th><th data-field="next_goal_own_obs">Next goal</th><th data-field="next_goal_own_exp">Usually</th><th data-field="swing10_excess">Goals vs normal, next 10 min</th><th data-field="swing10_se">Uncertainty</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -106,7 +125,7 @@
 
   <section class="card">
     <h2>What to keep in mind</h2>
-    <p class="note">Team officials are everyone on the sheet who is not a player. Sanctions come from the match reports of the Spanish federation, the French women's league and the French federation's match sheets. The LNH PDFs have no event log, so French men's games come only from the federation sheets. Those cover 2019-20 to 2022-23 and 2025-26 for StarLigue, and most of the same seasons for ProLigue; the earlier seasons and 2023-25 are not downloaded yet, so read the French men's rows as partial. About one in fourteen Spanish games has no clock and counts only in the result and final-margin measures. Small groups, teams in particular, move a lot from one sample to the next. These are patterns in the data: a staff member is usually sanctioned after something has gone wrong, so the next-goal gap may reflect that and not the sanction itself.</p>
+    <p class="note">Bench staff means everyone on the match sheet who is not a player. Sanctions come from the match reports of the Spanish federation, the French women's league and the French federation's match sheets. The LNH PDFs have no event log, so French men's games come only from the federation sheets. Those cover 2019-20 to 2022-23 and 2025-26 for StarLigue, and most of the same seasons for ProLigue; the earlier seasons and 2023-25 are not downloaded yet, so read the French men's rows as partial. About one in fourteen Spanish games has no clock and counts only in the result and final-margin measures. Small groups, teams in particular, move a lot from one sample to the next. These are patterns in the data: a staff member is usually sanctioned after something has gone wrong, so the next-goal gap may reflect that and not the sanction itself.</p>
   </section>
 </div>
 
@@ -115,8 +134,8 @@
   const root = document.querySelector('.hs');
   const pct = d3.format('.0%'), int = d3.format(','), s2 = d3.format('+.2f'), f2 = d3.format('.2f');
   const num = (v) => (v === '' || v == null ? null : +v);
-  const NAMES = {all: 'All', ES: 'Spain', FR: 'France', F: 'Women', M: 'Men', home: 'Home team', away: 'Away team', leading: 'Leading', tied: 'Tied', trailing: 'Trailing',
-    warning: 'Warning', two_min: '2-minute', disq: 'Disqualification', blue: 'Blue card', GUERRERAS: 'Guerreras', D1F: 'Ligue Butagaz'};
+  const NAMES = {all: 'All', ES: 'Spain', FR: 'France', F: 'Women', M: 'Men', home: 'Home team', away: 'Away team', leading: 'Winning', tied: 'Tied', trailing: 'Losing',
+    warning: 'Warning', two_min: '2-minute suspension', disq: 'Disqualification', blue: 'Blue card', GUERRERAS: 'Guerreras', D1F: 'Ligue Butagaz'};
   const label = (g) => NAMES[g] || g;
   const key = (...p) => p.map(encodeURIComponent).join(',');
   let tab = 'league';
@@ -153,7 +172,7 @@
     g.append('circle').attr('cx', (d) => x(d.obs)).attr('r', 5.5).style('fill', dash.colors[0]);
     g.append('text').attr('x', (d) => Math.max(x(d.obs), x(d.exp)) + 10).attr('y', 4).text((d) => pct(d.obs));
     g.append('rect').attr('x', 0).attr('y', -rowH / 2).attr('width', W).attr('height', rowH).attr('fill', 'transparent')
-      .on('mousemove', (ev, d) => showTip(box, ev, [d.label, `After sanction: ${pct(d.obs)}`, `Expected: ${pct(d.exp)}`, `Sanctions: ${int(d.n)}`])).on('mouseleave', hideTip);
+      .on('mousemove', (ev, d) => showTip(box, ev, [d.label, `After the sanction: ${pct(d.obs)}`, `Usually: ${pct(d.exp)}`, `Sanctions: ${int(d.n)}`])).on('mouseleave', hideTip);
   }
 
   // forest: excess with 95% interval around zero
@@ -176,7 +195,7 @@
       d3.select(this).style('fill', sig ? dash.colors[0] : 'var(--color-panel)').style('stroke', sig ? dash.colors[0] : 'var(--cds-chart-muted)').attr('stroke-width', 2);
     });
     g.append('rect').attr('x', 0).attr('y', -rowH / 2).attr('width', W).attr('height', rowH).attr('fill', 'transparent')
-      .on('mousemove', (ev, d) => showTip(box, ev, [d.label, `Swing vs baseline: ${s2(d.v)} goals`, `95% interval: ${s2(d.v - 1.96 * d.se)} to ${s2(d.v + 1.96 * d.se)}`, `Sanctions: ${int(d.n)}`])).on('mouseleave', hideTip);
+      .on('mousemove', (ev, d) => showTip(box, ev, [d.label, `Goals vs normal: ${s2(d.v)}`, `Likely range: ${s2(d.v - 1.96 * d.se)} to ${s2(d.v + 1.96 * d.se)}`, `Sanctions: ${int(d.n)}`])).on('mouseleave', hideTip);
   }
 
   const DIMS = [['league', 'League'], ['country', 'Country'], ['gender', 'Gender'], ['season', 'Season'], ['kind', 'Type'], ['side', 'Home / away'], ['state', 'Score when sanctioned'], ['team', 'Team']];
@@ -213,15 +232,25 @@
     // result by state
     dumbbell(charts[0], ['leading', 'tied', 'trailing'].map((g) => get('staff', 'state', g)).filter(Boolean).map((r) => ({label: label(r.group), obs: r.win_obs, exp: r.win_exp, n: r.n})));
     // next goal
-    const next = [['staff', 'total', 'all', 'All staff sanctions']].concat(['ASOBAL', 'GUERRERAS', 'D1F', 'StarLigue', 'ProLigue'].map((g) => ['staff', 'league', g, label(g)])).concat([['player_2min', 'total', 'all', 'Player 2-minute (comparison)']]);
+    const next = [['staff', 'total', 'all', 'All bench-staff sanctions']].concat(['ASOBAL', 'GUERRERAS', 'D1F', 'StarLigue', 'ProLigue'].map((g) => ['staff', 'league', g, label(g)])).concat([['player_2min', 'total', 'all', "Reference: a player's 2-minute suspension"]]);
     dumbbell(charts[1], next.map(([p, d, g, l]) => { const r = get(p, d, g); return r && {label: l, obs: r.next_goal_own_obs, exp: r.next_goal_own_exp, n: r.n}; }).filter(Boolean));
     // swing
     const sw = [];
     const add = (head, dim, order) => order.forEach((g, i) => { const r = get('staff', dim, g); if (r && r.swing10_se != null) sw.push({label: (i === 0 ? head + ' · ' : '      ') + label(g), v: r.swing10_excess, se: r.swing10_se, n: r.swing10_n, head: i === 0}); });
-    add('Total', 'total', ['all']); add('Score', 'state', ['leading', 'tied', 'trailing']); add('Type', 'kind', ['warning', 'two_min']);
+    add('Total', 'total', ['all']); add('Score at the time', 'state', ['leading', 'tied', 'trailing']); add('Type', 'kind', ['warning', 'two_min']);
     add('League', 'league', ['ASOBAL', 'GUERRERAS', 'D1F', 'StarLigue', 'ProLigue']); add('Gender', 'gender', ['M', 'F']); add('Side', 'side', ['home', 'away']);
-    const pl = get('player_2min', 'total', 'all'); if (pl) sw.push({label: 'Player 2-minute (comparison)', v: pl.swing10_excess, se: pl.swing10_se, n: pl.swing10_n, head: true});
+    const pl = get('player_2min', 'total', 'all'); if (pl) sw.push({label: "Reference: a player's 2-minute suspension", v: pl.swing10_excess, se: pl.swing10_se, n: pl.swing10_n, head: true});
     forest(charts[2], sw);
+    const T1 = (id, text) => { document.getElementById(id).textContent = text; };
+    const trail = get('staff', 'state', 'trailing');
+    if (lead && trail) T1('t-win', `Teams sanctioned while winning still win ${pct(lead.win_obs)} of the time, against ${pct(lead.win_exp)} usually. Teams sanctioned while losing win ${pct(trail.win_obs)}, against ${pct(trail.win_exp)} usually.`);
+    if (tot && pl) T1('t-next', `After a bench-staff sanction the team scores the next goal ${pct(tot.next_goal_own_obs)} of the time, against ${pct(tot.next_goal_own_exp)} usually. After a player's 2-minute suspension it is only ${pct(pl.next_goal_own_obs)}. Part of the staff gap is probably who has the ball when the sanction comes.`);
+    const t10 = get('staff', 'total', 'all');
+    if (t10 && t10.swing10_se != null) {
+      const clear = Math.abs(t10.swing10_excess) > 1.96 * t10.swing10_se;
+      T1('t-swing', clear ? `Over the next 10 minutes the sanctioned team ends ${f2(Math.abs(t10.swing10_excess))} goals ${t10.swing10_excess > 0 ? 'better' : 'worse'} than normal.`
+        : `Over the next 10 minutes the sanctioned team does about as well as normal (${s2(t10.swing10_excess)} goals): the difference is too small to tell apart from chance. Some groups below, such as teams that were winning, show a small but clearer drop.`);
+    }
 
     // transitions
     if (T.status === 'ok') {
