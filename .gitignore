@@ -16,3 +16,4 @@ handball.db-shm
 # Secrets
 .env
 data/
+dashboard/sanctions.html

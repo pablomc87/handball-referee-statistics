@@ -1,0 +1,254 @@
+<style>
+#dash-root { --dash-gutter: clamp(16px, 4vw, 40px); }
+.hs { max-width: 1120px; margin-inline: auto; font-family: var(--font-anthropic-sans); color: var(--color-fg); display: flex; flex-direction: column; gap: var(--cds-gap-lg); padding-block: var(--cds-pad-lg); }
+.hs h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+.hs h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+.hs p { margin: 0; line-height: 1.5; }
+.hs .lede { max-width: 70ch; color: var(--color-fg-muted); }
+.hs .note { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); max-width: 75ch; }
+.hs .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--cds-gap-md); }
+.hs .card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
+.hs .kpi .big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: 2.25rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.hs .kpi .cap { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.hs .kpi .vs { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.hs .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: var(--cds-gap-md); }
+.hs .chart { position: relative; min-height: 9rem; width: 100%; }
+.hs .chart svg { display: block; }
+.hs .chart text { fill: var(--color-fg-muted); font-size: 11px; font-family: var(--font-anthropic-sans); }
+.hs .chart text.strong { fill: var(--color-fg); }
+.hs .tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; z-index: 5; display: none; font-variant-numeric: tabular-nums; }
+.hs .tip .h { color: var(--cds-text-secondary); }
+.hs .legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.hs .legend i { display: inline-block; width: .65rem; height: .65rem; border-radius: 50%; margin-right: .35rem; vertical-align: -1px; }
+.hs .scroll { overflow-x: auto; }
+.hs table { border-collapse: collapse; width: 100%; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+.hs th, .hs td { text-align: right; padding: .4rem .6rem; border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+.hs th:first-child, .hs td:first-child { text-align: left; }
+.hs th { font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); position: sticky; top: 0; background: var(--color-panel); }
+.hs td.exp { color: var(--color-fg-muted); }
+.hs .tabs { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); }
+.hs [data-dash-source-state=empty] { color: transparent; }
+.hs [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+.hs .fail { display: flex; align-items: center; justify-content: center; gap: .4rem; min-height: 9rem; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.hs .fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+</style>
+
+<div class="hs">
+  <header>
+    <h1>Sanctions on team officials</h1>
+    <p class="lede" id="lede">Coaches and staff sanctioned with a warning, a 2-minute suspension or a disqualification, and what happened to the score afterwards. Liga ASOBAL, Liga Guerreras Iberdrola, Ligue Butagaz Énergie, StarLigue and ProLigue.</p>
+  </header>
+
+  <section class="kpis">
+    <div class="card kpi">
+      <span class="cap">Staff sanctions analysed</span>
+      <span class="big dash-skeleton" id="k-n" data-source="summary" data-field="n" data-where="population=staff&amp;dimension=total&amp;group=all">—</span>
+      <span class="vs">All leagues and seasons loaded so far</span>
+    </div>
+    <div class="card kpi">
+      <span class="cap">Sanctioned team scores the next goal</span>
+      <span class="big dash-skeleton" id="k-ng" data-source="summary" data-field="next_goal_own_obs" data-where="population=staff&amp;dimension=total&amp;group=all">—</span>
+      <span class="vs">Expected in the same situation: <span id="k-ng-e" data-source="summary" data-field="next_goal_own_exp" data-where="population=staff&amp;dimension=total&amp;group=all">—</span></span>
+    </div>
+    <div class="card kpi">
+      <span class="cap">Teams leading when sanctioned go on to win</span>
+      <span class="big dash-skeleton" id="k-lw" data-source="summary" data-field="win_obs" data-where="population=staff&amp;dimension=state&amp;group=leading">—</span>
+      <span class="vs">Expected: <span id="k-lw-e" data-source="summary" data-field="win_exp" data-where="population=staff&amp;dimension=state&amp;group=leading">—</span></span>
+    </div>
+    <div class="card kpi">
+      <span class="cap">Net goals from sanction to final whistle</span>
+      <span class="big dash-skeleton" id="k-sf" data-source="summary" data-field="swing_final_obs" data-where="population=staff&amp;dimension=total&amp;group=all">—</span>
+      <span class="vs">Expected: <span id="k-sf-e" data-source="summary" data-field="swing_final_exp" data-where="population=staff&amp;dimension=total&amp;group=all">—</span></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Does the result change?</h2>
+    <p class="note">Share of teams that win, by the score state when the staff member was sanctioned. The hollow dot is what teams in the same minute, lead and run of play normally do. Regulation time only.</p>
+    <div class="legend"><span><i style="background: var(--cds-chart-muted)"></i>Expected</span><span><i id="lg-obs"></i>After a staff sanction</span></div>
+    <div class="chart dash-skeleton" id="c-win" data-source="summary"></div>
+  </section>
+
+  <section class="card">
+    <h2>Who scores next?</h2>
+    <p class="note">How often the sanctioned team scores the next goal. The baseline is what teams in the same situation do in any minute of any game, which comes out near half. Who has the ball is not in the data and is not matched. A 2-minute suspension of a player is shown as a comparison with a known effect.</p>
+    <div class="chart dash-skeleton" id="c-next" data-source="summary"></div>
+  </section>
+
+  <section class="card">
+    <h2>Does the game dynamic shift?</h2>
+    <p class="note">Net goals the sanctioned team gains or loses in the next 10 minutes, compared with the baseline. Bars show the 95% interval; a group whose interval crosses zero shows no clear effect. Games without a clock are not included.</p>
+    <div class="chart dash-skeleton" id="c-swing" data-source="summary"></div>
+  </section>
+
+  <section class="card">
+    <h2>Result by score when sanctioned</h2>
+    <p class="note">Share of teams that won, drew or lost in regulation, against what teams in the same situation normally do. Margin change is the net goals from the sanction to the end.</p>
+    <div class="scroll">
+      <table id="t-trans" data-source="transitions" data-row-key="dimension,group,state">
+        <thead><tr><th data-field="state">Score when sanctioned</th><th data-field="n">Sanctions</th><th data-field="win">Win</th><th data-field="win_exp">Exp.</th><th data-field="draw">Draw</th><th data-field="draw_exp">Exp.</th><th data-field="loss">Loss</th><th data-field="loss_exp">Exp.</th><th data-field="final_margin_change">Margin change</th><th data-field="final_margin_change_exp">Exp.</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Breakdowns</h2>
+    <p class="note">Staff sanctions only. Win, next goal and the 10-minute swing are shown with their expected values.</p>
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="scroll">
+      <table id="t-break" data-source="summary" data-row-key="population,dimension,group">
+        <thead><tr><th data-field="group">Group</th><th data-field="n">Sanctions</th><th data-field="lead%">Leading %</th><th data-field="win_obs">Win</th><th data-field="win_exp">Exp.</th><th data-field="next_goal_own_obs">Next goal</th><th data-field="next_goal_own_exp">Exp.</th><th data-field="swing10_excess">10-min swing vs baseline</th><th data-field="swing10_se">± se</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What to keep in mind</h2>
+    <p class="note">Team officials are everyone on the sheet who is not a player. Sanctions come from the match reports of the Spanish federation, the French women's league and the French federation's match sheets. The LNH PDFs have no event log, so French men's games come only from the federation sheets. Those cover 2019-20 to 2022-23 and 2025-26 for StarLigue, and most of the same seasons for ProLigue; the earlier seasons and 2023-25 are not downloaded yet, so read the French men's rows as partial. About one in fourteen Spanish games has no clock and counts only in the result and final-margin measures. Small groups, teams in particular, move a lot from one sample to the next. These are patterns in the data: a staff member is usually sanctioned after something has gone wrong, so the next-goal gap may reflect that and not the sanction itself.</p>
+  </section>
+</div>
+
+<script>
+(() => {
+  const root = document.querySelector('.hs');
+  const pct = d3.format('.0%'), int = d3.format(','), s2 = d3.format('+.2f'), f2 = d3.format('.2f');
+  const num = (v) => (v === '' || v == null ? null : +v);
+  const NAMES = {all: 'All', ES: 'Spain', FR: 'France', F: 'Women', M: 'Men', home: 'Home team', away: 'Away team', leading: 'Leading', tied: 'Tied', trailing: 'Trailing',
+    warning: 'Warning', two_min: '2-minute', disq: 'Disqualification', blue: 'Blue card', GUERRERAS: 'Guerreras', D1F: 'Ligue Butagaz'};
+  const label = (g) => NAMES[g] || g;
+  const key = (...p) => p.map(encodeURIComponent).join(',');
+  let tab = 'league';
+
+  const tip = document.createElement('div'); tip.className = 'tip';
+  function showTip(box, ev, html) {
+    if (!tip.parentNode || tip.parentNode !== box) box.appendChild(tip);
+    tip.innerHTML = ''; html.forEach((t, i) => { const d = document.createElement('div'); if (i === 0) d.className = 'h'; d.textContent = t; tip.appendChild(d); });
+    tip.style.display = 'block';
+    const r = box.getBoundingClientRect(); let x = ev.clientX - r.left + 12, y = ev.clientY - r.top + 12;
+    const w = tip.offsetWidth; if (x + w > box.clientWidth) x = Math.max(0, ev.clientX - r.left - w - 12);
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  const hideTip = () => { tip.style.display = 'none'; };
+
+  function fail(box) { box.className = 'chart fail'; box.textContent = 'Failed to load'; }
+
+  // dumbbell: expected (hollow) vs observed (filled) for each row
+  function dumbbell(box, items) {
+    const W = box.clientWidth || 600, rowH = 30, m = {t: 8, r: 56, b: 22, l: 0};
+    box.querySelector('svg')?.remove();
+    const labW = Math.min(150, Math.max(...items.map((i) => i.label.length)) * 6.6 + 8); m.l = labW;
+    const H = m.t + items.length * rowH + m.b;
+    const vals = items.flatMap((i) => [i.exp, i.obs]);
+    const lo = Math.max(0, Math.floor((d3.min(vals) - 0.05) * 20) / 20), hi = Math.min(1, Math.ceil((d3.max(vals) + 0.03) * 20) / 20);
+    const x = d3.scaleLinear([lo, hi], [m.l, W - m.r]);
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    svg.append('g').selectAll('line').data(x.ticks(5)).join('line').attr('x1', (d) => x(d)).attr('x2', (d) => x(d)).attr('y1', m.t).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(x.ticks(5)).join('text').attr('x', (d) => x(d)).attr('y', H - 6).attr('text-anchor', 'middle').text((d) => pct(d));
+    const g = svg.selectAll('g.r').data(items).join('g').attr('class', 'r').attr('transform', (d, i) => `translate(0,${m.t + i * rowH + rowH / 2})`);
+    g.append('text').attr('x', 0).attr('y', 4).attr('class', 'strong').text((d) => d.label);
+    g.append('line').attr('x1', (d) => x(d.exp)).attr('x2', (d) => x(d.obs)).attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 2).attr('stroke-linecap', 'round');
+    g.append('circle').attr('cx', (d) => x(d.exp)).attr('r', 5).attr('fill', 'var(--color-panel)').attr('stroke', 'var(--cds-chart-muted)').attr('stroke-width', 2);
+    g.append('circle').attr('cx', (d) => x(d.obs)).attr('r', 5.5).style('fill', dash.colors[0]);
+    g.append('text').attr('x', (d) => Math.max(x(d.obs), x(d.exp)) + 10).attr('y', 4).text((d) => pct(d.obs));
+    g.append('rect').attr('x', 0).attr('y', -rowH / 2).attr('width', W).attr('height', rowH).attr('fill', 'transparent')
+      .on('mousemove', (ev, d) => showTip(box, ev, [d.label, `After sanction: ${pct(d.obs)}`, `Expected: ${pct(d.exp)}`, `Sanctions: ${int(d.n)}`])).on('mouseleave', hideTip);
+  }
+
+  // forest: excess with 95% interval around zero
+  function forest(box, items) {
+    const W = box.clientWidth || 600, rowH = 26, m = {t: 8, r: 16, b: 24, l: 0};
+    box.querySelector('svg')?.remove();
+    m.l = Math.min(190, Math.max(...items.map((i) => i.label.length)) * 6.6 + 8);
+    const H = m.t + items.length * rowH + m.b;
+    const ext = d3.max(items, (i) => Math.abs(i.v) + 1.96 * i.se), lim = Math.min(Math.ceil(Math.max(ext, 0.4) * 5) / 5, 2.4);
+    const x = d3.scaleLinear([-lim, lim], [m.l, W - m.r]).clamp(true);
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    svg.append('g').selectAll('line').data(x.ticks(6)).join('line').attr('x1', (d) => x(d)).attr('x2', (d) => x(d)).attr('y1', m.t).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(x.ticks(6)).join('text').attr('x', (d) => x(d)).attr('y', H - 8).attr('text-anchor', 'middle').text((d) => (d > 0 ? '+' : '') + d3.format('.1f')(d));
+    svg.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', m.t).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-reference)').attr('stroke-width', 1.5);
+    const g = svg.selectAll('g.r').data(items).join('g').attr('class', 'r').attr('transform', (d, i) => `translate(0,${m.t + i * rowH + rowH / 2})`);
+    g.append('text').attr('x', 0).attr('y', 4).attr('class', (d) => (d.head ? 'strong' : '')).text((d) => d.label);
+    g.append('line').attr('x1', (d) => x(d.v - 1.96 * d.se)).attr('x2', (d) => x(d.v + 1.96 * d.se)).attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 2).attr('stroke-linecap', 'round');
+    g.append('circle').attr('cx', (d) => x(d.v)).attr('r', 4.5).each(function (d) {
+      const sig = Math.abs(d.v) > 1.96 * d.se;
+      d3.select(this).style('fill', sig ? dash.colors[0] : 'var(--color-panel)').style('stroke', sig ? dash.colors[0] : 'var(--cds-chart-muted)').attr('stroke-width', 2);
+    });
+    g.append('rect').attr('x', 0).attr('y', -rowH / 2).attr('width', W).attr('height', rowH).attr('fill', 'transparent')
+      .on('mousemove', (ev, d) => showTip(box, ev, [d.label, `Swing vs baseline: ${s2(d.v)} goals`, `95% interval: ${s2(d.v - 1.96 * d.se)} to ${s2(d.v + 1.96 * d.se)}`, `Sanctions: ${int(d.n)}`])).on('mouseleave', hideTip);
+  }
+
+  const DIMS = [['league', 'League'], ['country', 'Country'], ['gender', 'Gender'], ['season', 'Season'], ['kind', 'Type'], ['side', 'Home / away'], ['state', 'Score when sanctioned'], ['team', 'Team']];
+  const tabs = document.getElementById('tabs');
+  DIMS.forEach(([d, t]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.id = 'tab-' + d; b.setAttribute('role', 'tab');
+    b.style.cssText = 'font: inherit; font-size: var(--cds-font-size-caption); padding: .3rem .7rem; border-radius: 999px; cursor: pointer; border: 1px solid var(--color-border-line); background: var(--color-panel); color: var(--color-fg);';
+    b.addEventListener('click', () => { tab = d; draw(); });
+    tabs.appendChild(b);
+  });
+
+  function cell(tr, text, cls) { const td = document.createElement('td'); td.textContent = text; if (cls) td.className = cls; tr.appendChild(td); }
+  const fp = (v) => (v == null ? '' : pct(v)), fs = (v) => (v == null ? '' : s2(v));
+
+  function draw() {
+    const S = dash.data('summary'), T = dash.data('transitions');
+    const charts = ['c-win', 'c-next', 'c-swing'].map((i) => document.getElementById(i));
+    if (S.status === 'error' || S.status === 'connect' || S.status === 'missing') { charts.forEach(fail); return; }
+    if (S.status !== 'ok') return;
+    charts.forEach((c) => c.classList.remove('dash-skeleton'));
+    const rows = S.data.map((r) => { const o = {...r}; for (const k in o) if (!['population', 'dimension', 'group'].includes(k)) o[k] = num(o[k]); return o; });
+    const get = (pop, dim, g) => rows.find((r) => r.population === pop && r.dimension === dim && r.group === g);
+    const dimRows = (pop, dim) => rows.filter((r) => r.population === pop && r.dimension === dim);
+
+    const set = (id, text) => { const e = document.getElementById(id); e.textContent = text; e.classList.remove('dash-skeleton'); };
+    const tot = get('staff', 'total', 'all');
+    if (tot) {
+      set('k-n', int(tot.n)); set('k-ng', pct(tot.next_goal_own_obs)); set('k-ng-e', pct(tot.next_goal_own_exp));
+      set('k-sf', s2(tot.swing_final_obs)); set('k-sf-e', s2(tot.swing_final_exp));
+    }
+    const lead = get('staff', 'state', 'leading');
+    if (lead) { set('k-lw', pct(lead.win_obs)); set('k-lw-e', pct(lead.win_exp)); }
+
+    // result by state
+    dumbbell(charts[0], ['leading', 'tied', 'trailing'].map((g) => get('staff', 'state', g)).filter(Boolean).map((r) => ({label: label(r.group), obs: r.win_obs, exp: r.win_exp, n: r.n})));
+    // next goal
+    const next = [['staff', 'total', 'all', 'All staff sanctions']].concat(['ASOBAL', 'GUERRERAS', 'D1F', 'StarLigue', 'ProLigue'].map((g) => ['staff', 'league', g, label(g)])).concat([['player_2min', 'total', 'all', 'Player 2-minute (comparison)']]);
+    dumbbell(charts[1], next.map(([p, d, g, l]) => { const r = get(p, d, g); return r && {label: l, obs: r.next_goal_own_obs, exp: r.next_goal_own_exp, n: r.n}; }).filter(Boolean));
+    // swing
+    const sw = [];
+    const add = (head, dim, order) => order.forEach((g, i) => { const r = get('staff', dim, g); if (r && r.swing10_se != null) sw.push({label: (i === 0 ? head + ' · ' : '      ') + label(g), v: r.swing10_excess, se: r.swing10_se, n: r.swing10_n, head: i === 0}); });
+    add('Total', 'total', ['all']); add('Score', 'state', ['leading', 'tied', 'trailing']); add('Type', 'kind', ['warning', 'two_min']);
+    add('League', 'league', ['ASOBAL', 'GUERRERAS', 'D1F', 'StarLigue', 'ProLigue']); add('Gender', 'gender', ['M', 'F']); add('Side', 'side', ['home', 'away']);
+    const pl = get('player_2min', 'total', 'all'); if (pl) sw.push({label: 'Player 2-minute (comparison)', v: pl.swing10_excess, se: pl.swing10_se, n: pl.swing10_n, head: true});
+    forest(charts[2], sw);
+
+    // transitions
+    if (T.status === 'ok') {
+      const tb = document.querySelector('#t-trans tbody'); tb.replaceChildren();
+      const order = {leading: 0, tied: 1, trailing: 2};
+      T.data.filter((r) => r.dimension === 'total' && r.group === 'all').sort((a, b) => order[a.state] - order[b.state]).forEach((r) => {
+        const tr = document.createElement('tr'); tr.dataset.key = key(r.dimension, r.group, r.state);
+        cell(tr, label(r.state)); cell(tr, int(+r.n));
+        [['win', 'win_exp'], ['draw', 'draw_exp'], ['loss', 'loss_exp']].forEach(([a, b]) => { cell(tr, fp(+r[a])); cell(tr, fp(+r[b]), 'exp'); });
+        cell(tr, fs(+r.final_margin_change)); cell(tr, fs(+r.final_margin_change_exp), 'exp'); tb.appendChild(tr);
+      });
+    }
+
+    // breakdown
+    DIMS.forEach(([d]) => { const b = document.getElementById('tab-' + d); b.setAttribute('aria-selected', d === tab); b.style.background = d === tab ? 'var(--color-fg)' : 'var(--color-panel)'; b.style.color = d === tab ? 'var(--color-bg)' : 'var(--color-fg)'; });
+    let list = dimRows('staff', tab);
+    list = tab === 'team' ? list.sort((a, b) => b.n - a.n).slice(0, 25) : tab === 'season' ? list.sort((a, b) => (a.group < b.group ? -1 : 1)) : list.sort((a, b) => b.n - a.n);
+    const bb = document.querySelector('#t-break tbody'); bb.replaceChildren();
+    list.forEach((r) => {
+      const tr = document.createElement('tr'); tr.dataset.key = key(r.population, r.dimension, r.group);
+      cell(tr, tab === 'season' ? r.group + '–' + String((+r.group + 1) % 100).padStart(2, '0') : label(r.group)); cell(tr, int(r.n));
+      cell(tr, r['lead%'] == null ? '' : d3.format('.0f')(r['lead%']) + '%');
+      cell(tr, fp(r.win_obs)); cell(tr, fp(r.win_exp), 'exp'); cell(tr, fp(r.next_goal_own_obs)); cell(tr, fp(r.next_goal_own_exp), 'exp');
+      cell(tr, fs(r.swing10_excess)); cell(tr, r.swing10_se == null ? '' : '±' + f2(r.swing10_se), 'exp'); bb.appendChild(tr);
+    });
+  }
+  document.getElementById('lg-obs').style.background = dash.colors[0];
+  dash.onData(draw);
+})();
+</script>
