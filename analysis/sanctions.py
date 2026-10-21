@@ -14,7 +14,7 @@ from pathlib import Path
 
 OUT = Path("data/analysis")
 STAFF_KINDS = {"warning", "two_min", "disq", "blue"}
-METRICS = ["win", "draw", "loss", "swing5", "swing10", "swing_final", "next_goal_own"]
+METRICS = ["win", "draw", "loss", "swing5", "swing10", "swing_final", "next_goal_own", "win10", "lose10"]
 
 
 def lead_bucket(d):
@@ -48,6 +48,8 @@ def measures(g, clocked, times, side, t, h0, a0, total_goals):
     for X in (300, 600):
         m[f"swing{X // 60}"] = ((score_at(times, g["tl"], t + X)[0] - score_at(times, g["tl"], t + X)[1]) * (1 if own == 0 else -1) - d0
                               if clocked and t + X <= 3600 else None)
+    m["win10"] = None if m["swing10"] is None else m["swing10"] > 0  # outscored the opponent over the next 10 minutes
+    m["lose10"] = None if m["swing10"] is None else m["swing10"] < 0
     nxt = next(((e[1], e[2]) for e in g["tl"] if e[1] + e[2] > h0 + a0), None)
     m["next_goal_own"] = None if nxt is None else ((nxt[0] > h0) if own == 0 else (nxt[1] > a0))
     return d0, m, last_scorer(g["tl"], h0, a0, own), momentum(g, times, own, t, d0)
