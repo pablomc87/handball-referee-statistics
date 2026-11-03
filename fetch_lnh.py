@@ -7,7 +7,7 @@ import aiohttp
 
 URL = "https://www.lnh.fr/daikin-starligue/calendriers/20262027/dsl/j07/caen/paris?cid={}&task=pdf"
 OUT = Path("data/lnh")
-UA = {"User-Agent": "handball-referee-statistics (research; contact pablomc87@gmail.com)"}
+UA = {"User-Agent": "handball-referee-statistics (research script)"}
 
 
 async def fetch(session, sem, cid, log):

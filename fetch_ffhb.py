@@ -14,7 +14,7 @@ import aiohttp
 SITE = "https://www.ffhandball.fr"
 FDM = "https://fdm.fdme.ffhandball.fr/{}/{}/{}/{}/{}.pdf"
 OUT = Path("data/ffhb")
-UA = {"User-Agent": "handball-referee-statistics (research; contact pablomc87@gmail.com)"}
+UA = {"User-Agent": "handball-referee-statistics (research script)"}
 MEN_PRO = re.compile(r"/(saison-\d{4}-\d{4}-\d+)/national/((?:lnh-|[a-z-]*starligue|[a-z-]*proligue)[a-z0-9-]*)/poule-(\d+)/")
 DECODER = json.JSONDecoder()
 

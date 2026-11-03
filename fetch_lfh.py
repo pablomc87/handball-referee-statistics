@@ -13,7 +13,7 @@ from botocore.exceptions import ClientError
 
 API = "https://ligue-feminine-handball.fr/wp-json/lfh/v1"
 OUT = Path("data/lfh")
-UA = {"User-Agent": "handball-referee-statistics (research; contact pablomc87@gmail.com)"}
+UA = {"User-Agent": "handball-referee-statistics (research script)"}
 
 
 async def get(session, sem, path):

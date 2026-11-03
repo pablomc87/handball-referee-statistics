@@ -14,11 +14,11 @@ import config
 
 API = "https://balonmano.isquad.es/json/api/call.php/resultados/actaLive"
 OUT = Path("data/isquad")
-UA = {"User-Agent": "handball-referee-statistics (research; contact pablomc87@gmail.com)"}
+UA = {"User-Agent": "handball-referee-statistics (research script)"}
 TOP_TIER = """
     SELECT m.match_id, t.season_id, t.categoria_name FROM matches m JOIN torneos t USING (torneo_id)
     WHERE lower(m.status) = 'finalizado'
-      AND (t.categoria_name LIKE '%HONOR ELITE FEMENINA' OR t.categoria_name LIKE '%DIVISION DE HONOR FEMENINA'
+      AND (replace(t.categoria_name, 'É', 'E') LIKE '%HONOR ELITE FEMENINA' OR t.categoria_name LIKE '%DIVISION DE HONOR FEMENINA'
            OR t.categoria_name LIKE '%DIVISION HONOR FEMENINA'
            OR (t.categoria_name LIKE '%HONOR MASCULIN%' AND t.categoria_name NOT LIKE '%PLATA%'))
 """
@@ -44,8 +44,12 @@ async def match(session, sem, mid, season, cat, log):
         return
     try:
         page = await get(session, sem, f"{config.BASE_URL}/acta.php?id_partido={mid}")
-        token = re.search(r'data-token="(\w+)"', page).group(1)
-        acta = json.loads(await get(session, sem, f"{API}?id_partido={mid}&token={token}"))
+        token = re.search(r'data-token="(\w+)"', page)
+        if token:  # 2019-20 to 2025-26 reports
+            acta = json.loads(await get(session, sem, f"{API}?id_partido={mid}&token={token[1]}"))
+        else:  # 2026-27 onwards: the page points at a tokenless proxy
+            path = re.search(r'data-url-api="([^"]+)"', page)[1]
+            acta = json.loads(await get(session, sem, f"{config.BASE_URL}/{path}&id_partido={mid}"))
         previo = await get(session, sem, f"{config.BASE_URL}/previo.php?id_partido={mid}")
     except Exception as e:  # ponytail: log and move on, rerun retries only the missing files
         log.write(f"{mid}\t{type(e).__name__}: {str(e)[:80]}\n")
