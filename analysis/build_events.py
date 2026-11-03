@@ -99,7 +99,7 @@ def lfh(path):
 
 
 # ── FFHB match-sheet PDF ─────────────────────────────────────────────────────
-ROW = re.compile(r"(\d\d):(\d\d) (\d\d)-(\d\d) (\S.*?)(?= \d\d:\d\d \d\d-\d\d |$)")
+ROW = re.compile(r"(\d\d):(\d\d) (\d\d) ?- ?(\d\d) (\S.*?)(?= \d\d:\d\d \d\d ?- ?\d\d |$)")  # 2018-20 sheets write "01 - 02" and keep spaces
 FF_KIND = (("Avertissement", "warning"), ("2MN", "two_min"), ("Disqualification", "disq"), ("Bleu", "blue"), ("Rouge", "disq"))
 
 
@@ -110,7 +110,7 @@ def ffhb(job):
     tl, sanc, seen = [[0, 0, 0]], [], set()
     for line in text.split("\n"):
         for m in ROW.finditer(line):
-            t, h, a, act = int(m[1]) * 60 + int(m[2]), int(m[3]), int(m[4]), m[5]
+            t, h, a, act = int(m[1]) * 60 + int(m[2]), int(m[3]), int(m[4]), m[5].replace(" ", "")
             if (t, h, a, act) in seen:
                 continue
             seen.add((t, h, a, act))
