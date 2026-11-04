@@ -12,3 +12,8 @@ wheels/
 # SQLite runtime sidecar files (WAL mode)
 handball.db-wal
 handball.db-shm
+
+# Secrets
+.env
+data/
+dashboard/sanctions.html

@@ -7,6 +7,7 @@ dependencies = [
     "aiohttp>=3.13.5",
     "alembic>=1.18.4",
     "beautifulsoup4>=4.14.3",
+    "boto3>=1.43.116",
     "fastapi>=0.136.3",
     "lxml>=6.1.1",
     "pdfplumber>=0.11.9",
